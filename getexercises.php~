@@ -1,0 +1,71 @@
+<?php
+/* File: 	getexercises.php
+   Desciption:	File to send an XML representation of the exercises in a given category.
+   Author:	Eric A. Bonney
+   Date:	December 30, 2009
+   Updated:	
+*/
+require_once "includes/db.inc";
+require_once "fitlogfunc.php";
+
+$category = $_GET["category"];
+
+session_start();
+
+// Get a connection to the database.
+if( !($connection = @mysql_connect( $hostName, $username, $password ) ) )
+	die( "Could not connect to database" );
+
+// Now that we are connected, select the correct database.
+if( !mysql_select_db( $databaseName, $connection ) )
+	showerror();
+
+//See if we have an authenticated user, if so, setup the appropriate message.
+if( isset( $_SESSION["loggedinUserName"] ) )
+{
+	$userID = getUserID( $connection );
+
+	/* Output the XML Prolog so the client can tell it is XML */
+	$xml = <<< PROLOG
+<?xml version="1.0" encoding="iso-8859-1"?>
+PROLOG;
+
+	$query = "SELECT exercise FROM flexercise_type WHERE user_id={$userID} AND category='" . $category . "'";
+	$results = @ mysql_query( $query, $connection );
+
+	$xml .= "<exercises>";
+	if( mysql_num_rows( $results) > 0 )
+	{
+		while( $row = mysql_fetch_array( $results ) )
+		{
+			$exercise = $row["exercise"];
+			$xml .= "<exercise>";
+			$xml .= "{$exercise}";
+			$xml .= "</exercise>";
+		}
+	}
+	else
+	{
+		/* We don't have any results. */
+		$xml .= "<exercise>";
+		$xml .= "</exercise>";
+	}
+	$xml .= "</exercises>";
+
+	/* Change the header to txt/xml so the client can use the string as XML. */
+	header( "Content-Type: text/xml" );
+	echo $xml;
+	exit;
+}
+else
+{
+	//Seems the user has attempted to navigate directly to the dashboard without
+	//logging in. Send them to the logout page with an error message.
+	$_SESSION["headerMessage"] = "Error!!";
+	$_SESSION["message"] = "You must first log into the system before you can view the page.";
+
+	// Send user to the logout page.
+	header( "Location: logout.php" );
+	exit;
+}
+?>

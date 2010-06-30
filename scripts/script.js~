@@ -1,0 +1,101 @@
+var xmlhttp=false;
+
+/*@cc_on @*/
+
+/*@if (@_jscript_version >= 5)
+
+// JScript gives us Conditional compilation, we can cope with old IE versions.
+
+// and security blocked creation of the objects.
+
+try 
+{
+	xmlhttp = new ActiveXObject("Msxml2.XMLHTTP");
+}
+catch (e)
+{
+	try
+	{
+		xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
+	}
+	catch (E)
+	{
+		xmlhttp = false;
+	}
+}
+
+@end @*/
+
+/*if (!xmlhttp && typeof XMLHttpRequest!='undefined')
+{
+	xmlhttp = new XMLHttpRequest();
+}
+
+function loadFragmentInToElement(fragment_url, element_id) 
+{
+	var element = document.getElementById(element_id);
+
+	element.innerHTML = '<em>Loading ...</em>';
+
+	xmlhttp.open("GET", fragment_url);
+
+	xmlhttp.onreadystatechange = function() {
+
+	if (xmlhttp.readyState == 4 && xmlhttp.status == 200)
+	{
+		element.innerHTML = xmlhttp.responseText;
+	}
+}
+
+xmlhttp.send(null);
+*/
+/***********************************************************************************************************
+/**
+/**
+/** The following code was adapted from mredkj.com
+/** Tutorials - DOM Table Add Row project
+//**
+//**
+//*********************************************************************************************************/
+// Last updated 2006-02-21
+function addRowToTable()
+{
+  var tbl = document.getElementById('str_workouts');
+  var lastRow = tbl.rows.length;
+  // if there's no header row in the table, then iteration = lastRow + 1
+  var iteration = lastRow;
+  var row = tbl.insertRow(lastRow);
+  
+  // left cell
+  var cellLeft = row.insertCell(0);
+  var textNode = document.createTextNode(iteration);
+  cellLeft.appendChild(textNode);
+  
+  // right cell
+  var cellRight = row.insertCell(1);
+  var el = document.createElement('input');
+  el.type = 'text';
+  el.name = 'txtRow' + iteration;
+  el.id = 'txtRow' + iteration;
+  el.size = 40;
+  
+//  el.onkeypress = keyPressTest;
+  cellRight.appendChild(el);
+  
+  // select cell
+  var cellRightSel = row.insertCell(2);
+  var sel = document.createElement('select');
+  sel.name = 'selRow' + iteration;
+  sel.options[0] = new Option('text zero', 'value0');
+  sel.options[1] = new Option('text one', 'value1');
+  cellRightSel.appendChild(sel);
+}
+
+function removeRowFromTable()
+{
+  var tbl = document.getElementById('tblSample');
+  var lastRow = tbl.rows.length;
+  if (lastRow > 2) tbl.deleteRow(lastRow - 1);
+}
+
+/***************************************************** End of mredkj.com Code ****************************/

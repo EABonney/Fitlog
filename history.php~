@@ -1,0 +1,237 @@
+<?php
+/* File: 	history.php
+   Desciption:	Implementation file for viewing monthly workout histories..
+   Author:	Eric A. Bonney
+   Date:	September 30, 2009
+   Updated:	
+*/
+
+require_once "includes/db.inc";
+require_once "HTML/Template/IT.php";
+require_once "Date.php";
+require_once "fitlogfunc.php";
+
+// Get a connection to the database.
+if( !($connection = @mysql_connect( $hostName, $username, $password ) ) )
+	die( "Could not connect to database" );
+
+// Now that we are connected, select the correct database.
+if( !mysql_select_db( $databaseName, $connection ) )
+	showerror();
+
+// Create the template and load the correct template file.
+$template = new HTML_Template_IT( "./templates" );
+$template->loadTemplatefile( "history.tpl", true, true );
+
+session_start();
+
+//See if we have an authenticated user, if so, setup the appropriate message.
+if( isset( $_SESSION["loggedinUserName"] ) )
+{
+	$yearmoday = explode( "-", $_SESSION["nav_month"] );
+
+	// See if the users is trying to display a month other than the current month.
+	if( $yearmoday != NULL )
+	{
+		$display_mo = new Date();
+		$display_mo->setDayMonthYear( $yearmoday[2], $yearmoday[1], $yearmoday[0] );
+	}
+	else
+		$display_mo = new Date();
+
+	//Set the date to the first day of the month.
+	$display_mo->setDayMonthYear( 1, $display_mo->getMonth(), $display_mo->getYear() );
+	
+	// Get the previous day from the displayed month.
+	$prevDay = $display_mo->getPrevDay();
+	$prevDay->setDayMonthYear( 1, ($prevDay->getMonth()), $prevDay->getYear() );
+
+	// Get the next day in from the diplayed month.
+	$display_mo->setDayMonthYear( $display_mo->getDaysInMonth(), $display_mo->getMonth(), $display_mo->getYear() );
+	$nextDay = $display_mo->getNextDay();
+
+	$template->setCurrentBlock( "NAVIGATION" );
+	$template->setVariable( "MONTH", "{$display_mo->getMonthName()} {$display_mo->getYear()} Totals" );
+	$template->setVariable( "PREVIOUS", $prevDay->format( "%Y-%m-%d" ) );
+	$template->setVariable( "NEXT", $nextDay->format( "%Y-%m-%d" ) );
+	$template->parseCurrentBlock();
+
+	//Display the current month's data.
+	create_history( $connection, $template );
+}
+else
+{
+	//Seems the user has attempted to navigate directly to the dashboard without
+	//logging in. Send them to the logout page with an error message.
+	$_SESSION["headerMessage"] = "Error!!";
+	$_SESSION["message"] = "You must first log into the system before you can view the page.";
+
+	// Send user to the logout page.
+	header( "Location: logout.php" );
+	exit;
+}
+
+//Show the user's Dashboard page.
+$template->show();
+
+/************************************* Helper functions *****************************************************/
+function create_history( $connection, $template )
+{
+	$userid = getUserID( $connection );
+	$yearmoday = explode( "-", $_SESSION["nav_month"] );
+
+	// See if the users is trying to display a month other than the current month.
+	if( $yearmoday != NULL )
+	{
+		$display_mo = new Date();
+		$display_mo->setDayMonthYear( $yearmoday[2], $yearmoday[1], $yearmoday[0] );
+	}
+	else
+		$display_mo = new Date();
+
+	$LastDay = $display_mo->getYear() . "-" . $display_mo->getMonth() . "-" . $display_mo->GetDaysInMonth();
+	$FirstDay = $display_mo->format( "%Y" ) . "-" . $display_mo->format( "%m" ) . "-" . "1";
+	$sbr_type = array( "s", "b", "r" );
+
+	$total_duration = array( 0, 0, 0 );
+	$total_distance = array( 0, 0, 0 );
+	$total_calories = array( 0, 0, 0 );
+
+	$i = 0;
+	while( $i < 3 )
+	{
+		$query = "SELECT * FROM flmain WHERE user_id={$userid} AND workout_date>='" . $FirstDay . "' AND workout_date<='" . $LastDay . "' AND sbr_type='" . $sbr_type[$i] . "' ORDER BY workout_date ASC";
+
+		$result = @ mysql_query( $query, $connection );
+
+		if( mysql_num_rows( $result ) > 0 )
+		{
+			//set the correct template block
+			selectActivityBlock( $i, $template );
+
+			//Get the first row of data and compare it to the day of the month to see if we have any
+			//data to display on the current day.
+			$row = mysql_fetch_array( $result );
+
+			//Out put each day of the displayed month. If we have data for that day
+			//then put it into the grid also.
+			$currentDay = new Date();
+			$nextMonth = new Date();
+			$currentDay->setDayMonthYear( 1, $display_mo->getMonth(), $display_mo->getYear() );
+			
+			//Move the display_mo to the first day of the next month.
+			$nextMonth->setDayMonthYear( $display_mo->GetDaysInMonth(), $display_mo->getMonth(), $display_mo->getYear() );
+			$nextMonth->addDays( 1 );
+
+			while( $currentDay->before( $nextMonth ) )
+			{
+				// select the correct activity block.
+				selectActivityBlock( $i, $template );
+
+				$template->setVariable( "UPDATE", $currentDay->format( "%Y-%m-%d" ) );
+				$template->setVariable( "DATE", $currentDay->format( "%b %e, %Y" ) );
+
+				//Check to see if the current day matches the current row, if so then output it.
+				if( !strcmp( $currentDay->format( "%Y-%m-%d" ), $row["workout_date"] ) )
+				{
+					outputCurrentDay( $template, $row, $i );
+
+					//Add up the duration, distance and calories
+					$total_dur[$i] = $total_dur[$i] + convert_time_seconds( $row["duration"] );
+					$total_dist[$i] = $total_dist[$i] + $row["distance"];
+					$total_cal[$i] = $total_cal[$i] + $row["cals_burned"];
+
+					$row = mysql_fetch_array( $result );
+				}
+
+				$template->parseCurrentBlock();
+
+				$currentDay->addDays( 1 );
+			}
+		
+			outputTotals( $template, $total_dur[$i], $total_dist[$i], $total_cal[$i], $i );
+		}
+		else
+		{
+			$currentDay = new Date();
+			$nextMonth = new Date();
+			$currentDay->setDayMonthYear( 1, $display_mo->getMonth(), $display_mo->getYear() );
+
+			//Move the display_mo to the first day of the next month.
+			$nextMonth->setDayMonthYear( $display_mo->GetDaysInMonth(), $display_mo->getMonth(), $display_mo->getYear() );
+			$nextMonth->addDays( 1 );
+
+			while( $currentDay->before( $nextMonth ) )
+			{
+				// set the correct activity block.
+				selectActivityBlock( $i, $template );
+
+				$template->setVariable( "UPDATE", $currentDay->format( "%Y-%m-%d" ) );
+				$template->setVariable( "DATE", $currentDay->format( "%b %e, %Y" ) );
+				$template->parseCurrentBlock();
+
+				$currentDay->addDays( 1 );
+			}
+		}
+
+		$i = $i + 1;
+	}
+}
+
+function outputCurrentDay( $template, $displayRow, $activityType )
+{
+	$template->setVariable( "DURATION", $displayRow["duration"] );
+	$template->setVariable( "DISTANCE", $displayRow["distance"] );
+	$template->setVariable( "CALORIES", $displayRow["cals_burned"] );
+	
+	if( $activityType == 2 )
+		$template->setVariable( "RPMS", $displayRow["avg_rpms"] );
+	
+	$template->setVariable( "PACE", $displayRow["pace"] );
+	$template->setVariable( "TIMEOFDAY", $displayRow["time_of_day"] );
+	$template->setVariable( "MINHR", $displayRow["min_hr"] );
+	$template->setVariable( "AVGHR", $displayRow["avg_hr"] );
+	$template->setVariable( "MAXHR", $displayRow["max_hr"] );
+	
+	$template->parseCurrentBlock();
+}
+
+function selectActivityBlock( $activity, $template )
+{
+	switch( $activity )
+	{
+		case 0:
+			$template->setCurrentBlock( "SWIM" );
+			break;
+		case 1:
+			$template->setCurrentBlock( "BIKE" );
+			break;
+		case 2:
+			$template->setCurrentBlock( "RUN" );
+			break;
+	}
+}
+
+function outputTotals( $template, $total_dur, $total_dist, $total_cal, $activityType )
+{
+	// Output the totals for each.
+	switch( $activityType )
+	{
+		case 0:
+			$template->setCurrentBlock( "SWIMTOTALS" );
+			break;
+		case 1:
+			$template->setCurrentBlock( "BIKETOTALS" );
+			break;
+		case 2:
+			$template->setCurrentBlock( "RUNTOTALS" );
+			break;
+	}
+
+	$template->setVariable( "TOTALDURATION", format_time( $total_dur ) );
+	$template->setVariable( "TOTALDISTANCE", $total_dist );
+	$template->setVariable( "TOTALCALORIES", $total_cal );
+
+	$template->parseCurrentBlock();
+}
+?>

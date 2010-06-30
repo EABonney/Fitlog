@@ -1,0 +1,553 @@
+var xmlhttpObj = createXMLHttpRequest();
+var begRows = 0;		/* Used to control which row we start on for the exercises */
+
+/*********************** XML Request/Respons Functions ************************************/
+function createXMLHttpRequest()
+{
+	var request = false;
+
+	/* Does this browser support the XMLHttpRequest object? ie Not IE */
+	if( window.XMLHttpRequest )
+	{
+		if( typeof XMLHttpRequest != 'undefined' )
+		{
+			/* Try to create a new XMLHttpRequest object */
+			try
+			{
+				request = new XMLHttpRequest();
+			}
+			catch (e)
+			{
+				request = false;
+			}
+		}
+	}
+	/* Does this browser support ActiveX objects, ie IE */
+	else if( window.ActiveXObject )
+	{
+		/* Try to create a new ActiveX XMLHttp object */
+		try
+		{
+			request = new ActiveXObject( 'Msxml2.XMLHTTP' );
+		}
+		catch (e)
+		{
+			request = false;
+		}
+	}
+
+	return request;
+}
+
+function requestData( p_request, p_URL, p_data, p_func, p_method)
+{
+	/* See if the XMLHttpRequest Object actually exists */
+	if( p_request )
+	{
+		/* is the posting method 'GET'? */
+		if( p_method == 'GET' )
+			p_request.open( 'GET', p_URL + '?' + p_data, true );
+		else
+			p_request.open( 'POST', p_URL, true );
+		p_request.onreadystatechange = p_func;
+		/* is the posting method 'GET'? */
+		if( p_method == 'GET' )
+			p_request.send();
+		else
+		{
+			p_request.setRequestHeader( 'Content-Type', 'application/x-www-form-urlencoded');
+			var sent = 'file=tmp.xml' + '&content=' + p_data;
+			p_request.send(sent);
+		}
+	}
+	else
+		alert( "Errror attempting to pass information to the server!" );
+}
+//**
+//**
+//** Fitlog general functions
+//**
+//**
+//*****************************************************************************************/
+function reloadWorkoutView( displayType )
+{
+	var newPage = displayType.Type.options[displayType.Type.selectedIndex].value;
+	if( newPage != "" )
+	{
+		location.href = "workoutview.php?display=" + newPage;
+	}
+	else
+		alert( "Somehow we didn't get a selection" );
+}
+
+function reloadReportsView( displayType )
+{
+	var newPage = displayType.Type.options[displayType.Type.selectedIndex].value;
+	if( newPage != "" )
+	{
+		location.href = "reports.php?reportRequested=" + newPage;
+	}
+	else
+		alert( "Somehow we didn't get a selection" );
+}
+
+function reloadStrengthView( displayType )
+{
+	var newPage = displayType.Type.options[displayType.Type.selectedIndex].value;
+	if( newPage != "" )
+	{
+		location.href = "strengthview.php?display=" + newPage;
+	}
+	else
+		alert( "Somehow we didn't get a selection" );
+}
+
+function editExercises( Id )
+{
+	location.href = "exercises.php?Id=" + Id + "&updating=true";
+}
+
+function loadExercises()
+{
+	var catSelected = document.getElementById('category').value;
+	requestData( xmlhttpObj, 'savedsearches.php', 'request=getExercises&category=' + catSelected, fillExercises, 'GET');
+}
+
+function fillExercises()
+{
+	/* Is the /readyState/ 4? */
+	if( xmlhttpObj.readyState == 4 )
+	{
+		/*Is the /status/ 200? */
+		if( xmlhttpObj.status == 200 )
+		{
+			/* Grab the /responseText/ from the request Object */
+			var response = xmlhttpObj.responseXML;
+			var exerciseList = response.getElementsByTagName('exercise');
+
+			/* Delete the options in the select box if there are any */
+			var selExercise = document.getElementById('exercise');
+			for( var i=selExercise.length; i > 0; i--)
+				selExercise.remove(i-1);
+
+			/* Add the exercises for the selected category */
+			for( var i=0; i < exerciseList.length; i++)
+			{
+				var option = document.createElement('option');
+				/* Get the exercise select object and add the new option to it */
+				selExercise.appendChild(option);
+				/* Set the text value and the value for the new option */
+				if( exerciseList[i].firstChild.nodeValue != 'none' )
+				{
+					option.text = exerciseList[i].firstChild.nodeValue;
+					option.value = exerciseList[i].firstChild.nodeValue;
+					document.getElementById('Add').disabled = false;
+				}
+				else
+					document.getElementById('Add').disabled = true;
+			}
+		}
+		else
+			alert( 'There was a problem retrieving the data: \n' + xmlhttpObj.statusText );
+
+		xmlhttpObj = createXMLHttpRequest();
+	}
+}
+
+function addWorkout( displayType )
+{
+	var catSelected = displayType.category.options[displayType.category.selectedIndex].value;
+	var exSelected = displayType.exercise.options[displayType.exercise.selectedIndex].value;
+	var sets = displayType.elements["sets"].value;
+
+	var frm = document.getElementById('exercises');
+	var tbldiv = document.getElementById('strengthtables');
+	var tbl = document.createElement("table");
+	tbl.setAttribute('class', 'str_workouts float');
+	tbl.setAttribute('id', 'workouts');
+	var tHead = tbl.createTHead();
+	var headerRow = tHead.insertRow(-1);
+	var cellDesc = headerRow.insertCell(-1);
+	cellDesc.setAttribute( 'colspan', '3');
+	cellDesc.setAttribute('class', 'exerciseheader');
+	cellDesc.appendChild(document.createTextNode( catSelected + ':' + exSelected ));
+	var cellDel = headerRow.insertCell(-1);
+	cellDel.setAttribute( 'colspan', '2' );
+	var button = document.createElement('input');
+	button.setAttribute('type', 'button');
+	button.setAttribute('name', 'delete');
+	button.setAttribute('value', 'Del');
+	cellDel.appendChild(button);
+	button.onclick = function() {deleteExercise(this)};
+	
+	var tblb = document.createElement("tbody");
+	var rowTitle = tblb.insertRow(-1);
+	var cellSets = rowTitle.insertCell(-1);
+	cellSets.setAttribute('class', 'set');
+	cellSets.appendChild(document.createTextNode(''));
+	var cellReps = rowTitle.insertCell(-1);
+	cellReps.setAttribute('class', 'reps');
+	cellReps.appendChild(document.createTextNode('Reps'));
+	var cellWgt = rowTitle.insertCell(-1);
+	cellWgt.setAttribute('class', 'wght');
+	cellWgt.appendChild(document.createTextNode('Wght'));
+	var cellLbs = rowTitle.insertCell(-1);
+	cellLbs.appendChild(document.createTextNode('Lbs'));
+	var cellHolder = rowTitle.insertCell(-1);
+	cellHolder.appendChild(document.createTextNode(''));
+
+	for( var i=1; i<=sets;i++)
+	{
+		var row = tblb.insertRow(-1);
+		var cell1 = row.insertCell(-1);
+		cell1.appendChild(document.createTextNode(i));
+		var cell2 = row.insertCell(-1);
+		var txtReps = document.createElement('input');
+		txtReps.setAttribute('type', 'text');
+		txtReps.setAttribute('id', 'reps' + i);
+		txtReps.setAttribute('name', 'reps');
+		txtReps.setAttribute('class', 'str_reps');
+		cell2.appendChild(txtReps);
+		var cell3 = row.insertCell(-1);
+		var txtWgt = document.createElement('input');
+		txtWgt.setAttribute('type', 'text');
+		txtWgt.setAttribute('id', 'weight' + i);
+		txtWgt.setAttribute('name', 'weight');
+		txtWgt.setAttribute('class', 'str_weight');
+		cell3.appendChild(txtWgt);
+		var cell4 = row.insertCell(-1);
+		var btnIns = document.createElement('input');
+		btnIns.setAttribute('type', 'button');
+		btnIns.setAttribute('name', 'insertSet');
+		btnIns.setAttribute('value', 'I');
+		cell4.appendChild(btnIns);
+		btnIns.onclick = function() {insertSet(this)};
+		var cell5 = row.insertCell(-1);
+		var btnDel = document.createElement('input');
+		btnDel.setAttribute('type', 'button');
+		btnDel.setAttribute('name', 'deleteSet');
+		btnDel.setAttribute('value', 'D' );
+		cell5.appendChild(btnDel);
+		btnDel.onclick = function() {deleteSet(this)};
+	}
+	tbl.appendChild(tblb);
+	tbldiv.appendChild(tbl);
+	frm.appendChild(tbldiv);
+}
+
+function deleteExercise(tblDeleted)
+{
+	var tblToDelete = tblDeleted.parentNode.parentNode.parentNode.parentNode;
+	var frm = tblDeleted.parentNode.parentNode.parentNode.parentNode.parentNode;
+	frm.removeChild(tblToDelete);
+}
+
+function deleteSet(setDeleted)
+{
+	var rowDel = setDeleted.parentNode.parentNode;
+	var tbl = setDeleted.parentNode.parentNode.parentNode;
+	if(tbl.rows.length > 2)
+	{
+		tbl.deleteRow(rowDel.sectionRowIndex);
+		for(var i=1; i<=tbl.rows.length; i++)
+			tbl.rows[i].cells[0].firstChild.nodeValue=i;
+	}
+}
+
+function insertSet(table)
+{
+	var tbl = table.parentNode.parentNode.parentNode.parentNode;
+	var rIndex  = table.parentNode.parentNode.sectionRowIndex;
+	var newRow = tbl.insertRow(rIndex+2);
+	var cell1 = newRow.insertCell(-1);
+	cell1.appendChild(document.createTextNode(i));
+	var cell2 = newRow.insertCell(-1);
+	var txtReps = document.createElement('input');
+	txtReps.setAttribute('type', 'text');
+	txtReps.setAttribute('id', 'reps' + i);
+	txtReps.setAttribute('name', 'reps' + i);
+	txtReps.setAttribute('class', 'str_reps');
+	cell2.appendChild(txtReps);
+	var cell3 = newRow.insertCell(-1);
+	var txtWgt = document.createElement('input');
+	txtWgt.setAttribute('type', 'text');
+	txtWgt.setAttribute('id', 'weight' + i);
+	txtWgt.setAttribute('name', 'weight' + i);
+	txtWgt.setAttribute('class', 'str_weight');
+	cell3.appendChild(txtWgt);
+	var cell4 = newRow.insertCell(-1);
+	var btnIns = document.createElement('input');
+	btnIns.setAttribute('type', 'button');
+	btnIns.setAttribute('name', 'insertSet');
+	btnIns.setAttribute('value', 'I');
+	cell4.appendChild(btnIns);
+	btnIns.onclick = function() {insertSet(this)};
+	var cell5 = newRow.insertCell(-1);
+	var btnDel = document.createElement('input');
+	btnDel.setAttribute('type', 'button');
+	btnDel.setAttribute('name', 'deleteSet');
+	btnDel.setAttribute('value', 'D' );
+	cell5.appendChild(btnDel);
+	btnDel.onclick = function() {deleteSet(this)};
+	for(var i=1; i<=tbl.rows.length; i++)
+		tbl.rows[i+1].cells[0].firstChild.nodeValue=i;
+}
+
+function getUserAddress()
+{
+	location.href = 'routes.php?view=m';
+}
+
+function saveDay( submitBtn )
+{
+	var exerciseTables = document.getElementsByTagName('table');
+	var starttime = document.getElementById('start_time').value;
+	var duration = document.getElementById('duration').value;
+	var strid = document.getElementById('strid').value;
+	var date = document.getElementById('date').value;
+	var type = document.getElementById('type').value;
+	var notes = document.getElementById('strnotes').value;
+	var xml_send = '<exercises>';
+	xml_send += '<action>saveDay</action>';
+	xml_send += '<starttime>' + starttime + '</starttime>';
+	xml_send += '<duration>' + duration + '</duration>';
+	xml_send += '<strid>' + strid + '</strid>';
+	xml_send += '<date>' + date + '</date>';
+	xml_send += '<type>' + type + '</type>';
+	xml_send += '<notes>' + notes + '</notes>';
+
+	for(var i=0; i<exerciseTables.length; i++)
+	{
+		for(var j=0; j<=exerciseTables[i].rows.length-3; j++)
+		{
+			var reps = document.getElementsByClassName('str_reps');
+			var weight = document.getElementsByClassName('str_weight');
+			xml_send += '<row>';
+			xml_send += '<exercise_desc>' + exerciseTables[i].rows[0].cells[0].firstChild.nodeValue + '</exercise_desc>';
+			xml_send += '<set>' + exerciseTables[i].rows[2+j].cells[0].firstChild.nodeValue +'</set>';
+			xml_send += '<reps>' + reps[(j+(i*3))].value + '</reps>';
+			xml_send += '<weight>' + weight[(j+(i*3))].value + '</weight>';
+			xml_send += '</row>';
+		}
+	}
+	xml_send += '</exercises>';
+	requestData( xmlhttpObj, 'savedsearches.php', xml_send, updateCurDay, 'POST' );
+}
+
+function saveTemplate( saveBtn )
+{
+	var templateName = document.getElementById('template');
+	var exerciseTables = document.getElementsByTagName('table');
+	var xml_send = '<exercises>';
+	xml_send += '<action>saveTemplate</action>';
+	for(var i=0; i<exerciseTables.length; i++)
+	{
+		for(var j=0; j<=exerciseTables[i].rows.length-3; j++)
+		{
+			var reps = document.getElementsByClassName('str_reps');
+			var weight = document.getElementsByClassName('str_weight');
+			xml_send += '<row>';
+			xml_send += '<desc>' + templateName.value + '</desc>';
+			xml_send += '<exercise_desc>' + exerciseTables[i].rows[0].cells[0].firstChild.nodeValue + '</exercise_desc>';
+			xml_send += '<set>' + exerciseTables[i].rows[2+j].cells[0].firstChild.nodeValue +'</set>';
+			xml_send += '<reps>' + reps[(j+(i*3))].value + '</reps>';
+			xml_send += '<weight>' + weight[(j+(i*3))].value + '</weight>';
+			xml_send += '</row>';
+		}
+	}
+	xml_send += '</exercises>';
+	requestData( xmlhttpObj, 'savedsearches.php', xml_send, updateTemplates, 'POST' );
+}
+
+function loadTemplate( loadBtn )
+{
+	var selTemplates = document.getElementById('str_templates');
+	for(var i=0; i<selTemplates.length; i++)
+	{
+		if( selTemplates.options[i].selected )
+			var tmpRequested = selTemplates[i].firstChild.nodeValue;
+	}
+
+	requestData( xmlhttpObj, 'savedsearches.php', 'request=loadTemplate&template=' + tmpRequested, loadSelTemplate, 'GET' );
+}
+
+function deleteTemplate()
+{
+	var tmplSelected = document.getElementById('str_templates').value;
+	requestData( xmlhttpObj, 'savedsearches.php', 'request=deleteTemplate&template=' + tmplSelected, updateTemplates, 'GET');
+}
+
+function updateCurDay()
+{
+	/* Is the /readyState/ 4? */
+	if( xmlhttpObj.readyState == 4 )
+	{
+		/*Is the /status/ 200? */
+		if( xmlhttpObj.status == 200 )
+		{
+			/* Grab the /responseText/ from the request Object */
+			var response = xmlhttpObj.responseXML;
+			var saved = response.getElementsByTagName('recordssaved');
+			alert('Records saved successfully:' + saved[0].firstChild.nodeValue);
+			location.href = 'strengthview.php';
+		}
+		else
+			alert( 'There was a problem retrieving the data: \n' + xmlhttpObj.statusText );
+
+		xmlhttpObj = createXMLHttpRequest();
+	}
+}
+
+function updateTemplates()
+{
+	/* Is the /readyState/ 4? */
+	if( xmlhttpObj.readyState == 4 )
+	{
+		/*Is the /status/ 200? */
+		if( xmlhttpObj.status == 200 )
+		{
+			/* Grab the /responseText/ from the request Object */
+			var response = xmlhttpObj.responseXML;
+			var errorResponse = response.getElementsByTagName('error');
+			var templateResponse = response.getElementsByTagName('template');
+			var deletedResponse = response.getElementsByTagName('deleted');
+			var recordsSaved = response.getElementsByTagName('recordssaved');
+			if( errorResponse.length == 1  )
+			{
+				alert( errorResponse[0].firstChild.nodeValue );
+			}
+			else if( templateResponse.length == 1 )
+			{
+				alert('Records saved: ' + recordsSaved[0].firstChild.nodeValue);
+				var selTemplates = document.getElementById('str_templates');
+				var option = document.createElement('option')
+				selTemplates.appendChild(option);
+				option.text = templateResponse[0].firstChild.nodeValue;
+				option.value = templateResponse[0].firstChild.nodeValue;
+				var templateInput = document.getElementById('template');
+				templateInput.value = '';
+			}
+			else if( deletedResponse.length == 1 )
+			{
+				var selTemplates = document.getElementById('str_templates');
+				for( var i=0; i<selTemplates.length; i++)
+				{
+					if( selTemplates.options[i].selected )
+						selTemplates.remove(i);
+				}
+			}
+		}
+		else
+			alert( 'There was a problem retrieving the data: \n' + xmlhttpObj.statusText );
+
+		xmlhttpObj = createXMLHttpRequest();
+	}
+}
+
+function loadSelTemplate()
+{
+	/* Is the /readyState/ 4? */
+	if( xmlhttpObj.readyState == 4 )
+	{
+		/*Is the /status/ 200? */
+		if( xmlhttpObj.status == 200 )
+		{
+			/* Grab the /responseText/ from the request Object */
+			var response = xmlhttpObj.responseXML;
+			var tables = response.getElementsByTagName('table');
+			var frm = document.getElementById('exercises');
+			var tbldiv = document.getElementById('strengthtables');
+			var ntables = tables.length;
+			/* See if we need to delete any tables currently in the display. */
+			var curTables = document.getElementsByTagName('table');
+			if(curTables.length)
+			{
+				for(var i=0; i<curTables.length;i++)
+					frm.removeChild(frm.lastChild);	
+			}
+			for( var i=0; i<ntables; i++)
+			{
+				var nrows = tables[i].childNodes.length;
+				tbl = document.createElement('table');
+				tbl.setAttribute('class', 'str_workouts float');
+				tbl.setAttribute('id', 'workouts');
+				var tHead = tbl.createTHead();
+				var headerRow = tHead.insertRow(-1);
+				var desc = tables[i].childNodes[0].childNodes[0].firstChild.nodeValue;
+				var cellDesc = headerRow.insertCell(-1);
+				cellDesc.setAttribute( 'colspan', '3');
+				cellDesc.setAttribute('class', 'exerciseheader');
+				cellDesc.appendChild( document.createTextNode( desc ) );
+				var cellDel = headerRow.insertCell(-1);
+				cellDel.setAttribute( 'colspan', '2' );
+				var button = document.createElement('input');
+				button.setAttribute('type', 'button');
+				button.setAttribute('name', 'delete');
+				button.setAttribute('value', 'Del');
+				cellDel.appendChild(button);
+				button.onclick = function() {deleteExercise(this)};
+
+				var tblb = document.createElement("tbody");
+				var rowTitle = tblb.insertRow(-1);
+				var cellSets = rowTitle.insertCell(-1);
+				cellSets.setAttribute('class', 'set');
+				cellSets.appendChild(document.createTextNode(''));
+				var cellReps = rowTitle.insertCell(-1);
+				cellReps.setAttribute('class', 'reps');
+				cellReps.appendChild(document.createTextNode('Reps'));
+				var cellWgt = rowTitle.insertCell(-1);
+				cellWgt.setAttribute('class', 'wght');
+				cellWgt.appendChild(document.createTextNode('Wght'));
+				var cellLbs = rowTitle.insertCell(-1);
+				cellLbs.appendChild(document.createTextNode('Lbs'));
+				var cellHolder = rowTitle.insertCell(-1);
+				cellHolder.appendChild(document.createTextNode(''));
+				for( var j=0; j<nrows; j++ )
+				{
+					var nreps = tables[i].childNodes[j].childNodes[2].firstChild.nodeValue;
+					var nweight = tables[i].childNodes[j].childNodes[3].firstChild.nodeValue;
+					var row = tblb.insertRow(-1);
+					var cell1 = row.insertCell(-1);
+					cell1.appendChild(document.createTextNode(j+1));
+					var cell2 = row.insertCell(-1);
+					var txtReps = document.createElement('input');
+					txtReps.setAttribute('type', 'text');
+					txtReps.setAttribute('id', 'reps' + j);
+					txtReps.setAttribute('name', 'reps');
+					txtReps.setAttribute('class', 'str_reps');
+					txtReps.setAttribute('value', nreps);
+					cell2.appendChild(txtReps);
+					var cell3 = row.insertCell(-1);
+					var txtWgt = document.createElement('input');
+					txtWgt.setAttribute('type', 'text');
+					txtWgt.setAttribute('id', 'weight' + j);
+					txtWgt.setAttribute('name', 'weight');
+					txtWgt.setAttribute('class', 'str_weight');
+					txtWgt.setAttribute('value', nweight);
+					cell3.appendChild(txtWgt);
+					var cell4 = row.insertCell(-1);
+					var btnIns = document.createElement('input');
+					btnIns.setAttribute('type', 'button');
+					btnIns.setAttribute('name', 'insertSet');
+					btnIns.setAttribute('value', 'I');
+					cell4.appendChild(btnIns);
+					btnIns.onclick = function() {insertSet(this)};
+					var cell5 = row.insertCell(-1);
+					var btnDel = document.createElement('input');
+					btnDel.setAttribute('type', 'button');
+					btnDel.setAttribute('name', 'deleteSet');
+					btnDel.setAttribute('value', 'D' );
+					cell5.appendChild(btnDel);
+					btnDel.onclick = function() {deleteSet(this)};
+					tbl.appendChild(tblb);
+				}
+				tbldiv.appendChild(tbl);
+			}
+			frm.appendChild(tbldiv);
+		}
+		else
+			alert( 'There was a problem retrieving the data: \n' + xmlhttpObj.statusText );
+
+		xmlhttpObj = createXMLHttpRequest();
+	}
+}

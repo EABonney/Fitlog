@@ -1,0 +1,167 @@
+<?php
+function swimpace( $time, $distance )
+{
+     //$time_sec = convert_time_seconds( $time );
+     // Return swim pace
+     return round( ( convert_seconds_minutes( $time ) / ($distance / 100 ) ), 2 );
+}
+
+function bikepace( $time, $distance )
+{
+     //$time_sec = convert_time_seconds( $time );
+     // Return bike pace
+     return round( ( ($distance / ( ( convert_seconds_minutes( $time ) ) / 60)) ), 2 );
+}
+
+function runpace( $time, $distance )
+{
+     //$time_sec = convert_time_seconds( $time );
+     // Return run pace
+     return round( ( ( convert_seconds_minutes( $time ) / $distance) ), 2 );
+}
+
+function convert_time_seconds( $time )
+{
+	$seconds = explode( ":", $time );
+
+	// return the total in seconds
+	return ( ( $seconds[0] * 3600) + ( $seconds[1] * 60 ) + ( $seconds[2] ) );
+}
+
+function format_time( $total )
+{
+	// Convert total from seconds to full time again
+	$_total_time["hrs"] = floor(($total / 3600));
+	$_total_time["mins"] = floor(($total - ($_total_time["hrs"] * 3600)) / 60);
+	$_total_time["secs"] = floor(($total - ($_total_time["hrs"] * 3600) - ($_total_time["mins"] * 60)));
+
+	// Prefix with 0s where necessary
+	if (strlen($_total_time["hrs"]) == 1) 
+	  $_total_time["hrs"] = "0" . $_total_time["hrs"];
+	if (strlen($_total_time["mins"]) == 1)
+	  $_total_time["mins"] = "0" . $_total_time["mins"];
+	if (strlen($_total_time["secs"]) == 1)
+	  $_total_time["secs"] = "0" . $_total_time["secs"];
+
+	// Format total time
+	$total_time = $_total_time["hrs"] . ":" . $_total_time["mins"] . ":" . $_total_time["secs"];
+
+	return ( $total_time );
+}
+
+function format_date( $old_date )
+{
+	$date_array = explode( "-", $old_date);
+
+	$year = $date_array[0];
+	$month = $date_array[1];
+	$day = $date_array[2];
+
+	// create an integer "date" for use with the date() php function.
+	$new_date = mktime( 0, 0, 0, $month, $day, $year );
+
+	return ( $new_date );
+}
+
+function convert_seconds_minutes( $seconds )
+{
+	$_seconds = floatval( $seconds );
+	$minutes = $_seconds / 60;
+
+	return $minutes;
+}
+
+function get_prevMonth( $month )
+{
+	// Return the numerical version of the previous month
+	return (intval($month) - 1);
+}
+
+function get_nextMonth( $month )
+{
+	// Return the numerical version of the next month
+	return (intval($month) + 1);
+}
+
+function validate_email( $emailaddy )
+{
+	// Check syntax
+	$validEmailExpr = "^[0-9a-z~!#$%&_-]([.]?[0-9a-z~!#$%&_-])*" .
+			  "@[0-9a-z~!#$%&_-]([.]?[0-9a-z~!#$%&_-])*$";
+
+	// Validate the email
+	if( empty( $emailaddy ) )
+	{
+		echo "The email field can not be blank.";
+		return false;
+	}
+	elseif ( !eregi( $validEmailExpr, $emailaddy ) )
+	{
+		echo "The email must be in the name@domain format.";
+		return false;
+	}
+	elseif ( strlen( $emailaddy ) > 50 )
+	{
+		echo "The email address can not exceed 50 characters.";
+		return false;
+	}
+	elseif ( function_exists("getmxrr") && function_exists("gethostbyname") )
+	{
+		// Extract the domain of the email address
+		$maildomain = substr( strstr($emailaddy, '@'), 1 );
+
+		if( !( getmxrr( $maildomain, $temp) ||
+			gethostbyname( $maildomain ) != $maildomain ) )
+		{
+			echo "The domain does not appear to exist.";
+			return false;
+		}
+	}
+
+	// If we get here, we assume the email address is correct.
+	return true;
+}
+
+function getUserID( $connection )
+{
+	//See if there is a logged in users and if so, retrieve it's user_id
+	session_start();
+
+	$query = "SELECT user_id FROM users WHERE user_name='{$_SESSION["loggedinUserName"]}'";
+
+	$result = @ mysql_query( $query, $connection );
+
+	//If we only have one row then we are in good shape.
+	if( mysql_num_rows( $result ) != 1)
+		return 0;
+	else
+	{
+		$row = mysql_fetch_array( $result );
+		return $row["user_id"];
+	}
+
+	//If we reach here, return zero for an error!
+	return 0;
+}
+
+function getUserFirstName( $connection, $userID )
+{
+	// First let's grab the user's first name if they set it up in settings.
+	$query = "SELECT FirstName from user_settings WHERE user_id=" . $userID;
+	$result = @ mysql_query( $query );
+	$row = mysql_fetch_array( $result );
+
+	if( !$result )
+		return FALSE;
+	else
+		return $row["FirstName"];
+}
+
+// Function used to print out information debugging messages to the screen.
+function msgBox( $msg, $data )
+{
+	echo "<script type='text/javascript'>
+	alert('$msg, variable= $data');
+	</script>";
+}
+?>

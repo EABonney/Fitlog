@@ -1,0 +1,73 @@
+<!DOCTYPE webproject>
+<webproject>
+  <project type="Local" name="wp_fitness" encoding="utf8" >
+    <upload/>
+    <author>Eric A. Bonney</author>
+    <email>eric@ericbonney.com</email>
+    <defaultDTD>-//W3C//DTD HTML 4.01 Transitional//EN</defaultDTD>
+    <item url="scripts/" uploadstatus="1" />
+    <item url="fitlogpace.php" uploadstatus="1" />
+    <item url="fitnesslog.php" uploadstatus="1" />
+    <item url="" uploadstatus="1" />
+    <templates>templates/</templates>
+    <toolbars>toolbars/</toolbars>
+    <annotations/>
+    <item url="fitlogsubmit.php" uploadstatus="1" />
+    <item url="fitlogfunc.php" uploadstatus="1" />
+    <item url="fitlog.css" uploadstatus="1" />
+    <item url="fitlogupdate.php" uploadstatus="1" />
+    <item url="templates/" uploadstatus="1" />
+    <item url="fitlogdelete.php" uploadstatus="1" />
+    <item url="ftnav.php" uploadstatus="1" />
+    <item url="fitlogupload.php" uploadstatus="1" />
+    <item url="ftlogexercisestype.php" uploadstatus="1" />
+    <item url="scripts/fitlog_scripts.js" uploadstatus="1" />
+    <item url="index.html" uploadstatus="1" />
+    <item url="style1.css" uploadstatus="1" />
+    <item url="setup.php" uploadstatus="1" />
+    <item url="workouts.php" uploadstatus="1" />
+    <item url="register.php" uploadstatus="1" />
+    <item url="createaccount.php" uploadstatus="1" />
+    <item url="dashboard.php" uploadstatus="1" />
+    <item url="createdone.php" uploadstatus="1" />
+    <item url="templates/confirmemail.tpl" uploadstatus="1" />
+    <item url="templates/registration.tpl" uploadstatus="1" />
+    <item url="includes/authentication.inc" uploadstatus="1" />
+    <item url="includes/" uploadstatus="1" />
+    <item url="includes/db.inc" uploadstatus="1" />
+    <item url="confirmation.php" uploadstatus="1" />
+    <item url="login.php" uploadstatus="1" />
+    <item url="logout.php" uploadstatus="1" />
+    <item url="templates/logout.tpl" uploadstatus="1" />
+    <item url="templates/dashboard.tpl" uploadstatus="1" />
+    <item url="templates/about.tpl" uploadstatus="1" />
+    <item url="about.php" uploadstatus="1" />
+    <item url="settings.php" uploadstatus="1" />
+    <item url="reports.php" uploadstatus="1" />
+    <item url="trainingplans.php" uploadstatus="1" />
+    <item url="routes.php" uploadstatus="1" />
+    <item url="savesettings.php" uploadstatus="1" />
+    <item url="templates/settings.tpl" uploadstatus="1" />
+    <item url="templates/history.tpl" uploadstatus="1" />
+    <item url="history.php" uploadstatus="1" />
+    <item url="templates/workouts.tpl" uploadstatus="1" />
+    <item url="workoutview.php" uploadstatus="1" />
+    <item url="templates/workoutview.tpl" uploadstatus="1" />
+    <item url="templates/uploads.tpl" uploadstatus="1" />
+    <item url="templates/downloads.tpl" uploadstatus="1" />
+    <item url="downloads.php" uploadstatus="1" />
+    <item url="templates/reports.tpl" uploadstatus="1" />
+    <item url="temp.php" uploadstatus="1" />
+    <item url="templates/strengthtraining.tpl" uploadstatus="1" />
+    <item url="strengthview.php" uploadstatus="1" />
+    <item url="exercises.php" uploadstatus="1" />
+    <item url="templates/exercises.tpl" uploadstatus="1" />
+    <item url="templates/strengthworkouts.tpl" uploadstatus="1" />
+    <item url="strengthworkouts.php" uploadstatus="1" />
+    <item url="templates/routes.tpl" uploadstatus="1" />
+    <item url="templates/routesmainview.tpl" uploadstatus="1" />
+    <item url="scripts/map_functions.js" uploadstatus="1" />
+    <item url="temp1.php" uploadstatus="1" />
+    <item url="savedsearches.php" uploadstatus="1" />
+  </project>
+</webproject>

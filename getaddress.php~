@@ -1,0 +1,81 @@
+<?php
+/* File: 	getaddress.php
+   Desciption:	File to send an XML representation of the address for the given user.
+   Author:	Eric A. Bonney
+   Date:	January 4, 2010
+   Updated:	
+*/
+require_once "includes/db.inc";
+require_once "fitlogfunc.php";
+
+session_start();
+
+// Get a connection to the database.
+if( !($connection = @mysql_connect( $hostName, $username, $password ) ) )
+	die( "Could not connect to database" );
+
+// Now that we are connected, select the correct database.
+if( !mysql_select_db( $databaseName, $connection ) )
+	showerror();
+
+//See if we have an authenticated user, if so, setup the appropriate message.
+if( isset( $_SESSION["loggedinUserName"] ) )
+{
+	$userID = getUserID( $connection );
+
+	/* Output the XML Prolog so the client can tell it is XML */
+	$xml = <<< PROLOG
+<?xml version="1.0" encoding="iso-8859-1"?>
+PROLOG;
+
+	$query = "SELECT * FROM user_settings WHERE user_ID={$userID}";
+	if( $results = @ mysql_query( $query, $connection ) )
+	{
+		$row = mysql_fetch_array( $results );
+
+		$streetAddr = $row["StreetAddr"];
+		$City = $row["City"];
+		$State = $row["State"];
+		$ZipCode = $row["ZipCode"];
+	}
+	else
+	{
+		// Populate the address with a standard address then.
+		$streetAddr = "600 S Washtington St";
+		$City = "Carthage";
+		$State = "NY";
+		$ZipCode = "13619";
+	}
+
+	$xml .= "<address>";
+	$xml .= "<street>";
+	$xml .= "{$streetAddr}";
+	$xml .= "</street>";
+	$xml .= "<city>";
+	$xml .= "{$City}";
+	$xml .= "</city>";
+	$xml .= "<state>";
+	$xml .= "{$State}";
+	$xml .= "</state>";
+	$xml .= "<zipcode>";
+	$xml .= "{$ZipCode}";
+	$xml .= "</zipcode>";
+	$xml .= "</address>";
+
+	/* Change the header to txt/xml so the client can use the string as XML. */
+	header( "Content-Type: text/xml" );
+	echo $xml;
+	exit;
+}
+else
+{
+	//Seems the user has attempted to navigate directly to the dashboard without
+	//logging in. Send them to the logout page with an error message.
+	$_SESSION["headerMessage"] = "Error!!";
+	$_SESSION["message"] = "You must first log into the system before you can view the page.";
+
+	// Send user to the logout page.
+	header( "Location: logout.php" );
+	exit;
+}
+?>

@@ -1,0 +1,339 @@
+<?php
+/* File: 	savedsearches.php
+   Desciption:	File to send XML data from the server to the client.
+   Author:	Eric A. Bonney
+   Date:	Janury 7, 2010
+   Updated:	
+*/
+require_once "includes/db.inc";
+require_once "fitlogfunc.php";
+
+$request = $_GET["request"];
+$category = $_GET["category"];
+$xml_data = $_POST["content"];
+$template = $_GET["template"];
+
+switch( $_GET["type"] )
+{
+	case 'Actual':
+		$type = "a";
+		break;
+	case 'Planned':
+		$type = "p";
+		break;
+}
+
+session_start();
+
+// Get a connection to the database.
+if( !($connection = @mysql_connect( $hostName, $username, $password ) ) )
+	die( "Could not connect to database" );
+
+// Now that we are connected, select the correct database.
+if( !mysql_select_db( $databaseName, $connection ) )
+	showerror();
+
+//See if we have an authenticated user, if so, setup the appropriate message.
+if( isset( $_SESSION["loggedinUserName"] ) )
+{
+	// See if xml_data is set, if so see what action the user wants.
+	if( isset( $xml_data ) )
+	{
+		$xmldoc = simplexml_load_string( $xml_data );
+		$request = $xmldoc->action;
+	}
+	$userID = getUserID( $connection );
+
+	/* Output the XML Prolog so the client can tell it is XML */
+	$xml = <<< PROLOG
+<?xml version="1.0" encoding="iso-8859-1"?>
+PROLOG;
+
+	switch( $request )
+	{
+		case 'getAddress':
+			$xml .= getaddress( $userID, $connection );
+			break;
+		case 'getExercises':
+			$xml .= getexercises( $userID, $connection, $category );
+			break;
+		case 'saveTemplate':
+			$xml .= savetemplate( $userID, $connection, $xml_data );
+			break;
+		case 'deleteTemplate':
+			$xml .= deletetemplate( $userID, $connection, $template );
+			break;
+		case 'loadTemplate':
+			$xml .= loadtemplate( $userID, $connection, $template );
+			break;
+		case 'saveDay':
+			$xml .= saveday( $userID, $connection, $xml_data );
+			break;
+		default:
+			$xml .= "<error>Reached deafult case!</error>";
+			break;
+	}
+
+	/* Change the header to txt/xml so the client can use the string as XML. */
+	header( "Content-Type: text/xml" );
+	echo $xml;
+	exit;
+}
+else
+{
+	//Seems the user has attempted to navigate directly to the dashboard without
+	//logging in. Send them to the logout page with an error message.
+	$_SESSION["headerMessage"] = "Error!!";
+	$_SESSION["message"] = "You must first log into the system before you can view the page.";
+
+	// Send user to the logout page.
+	header( "Location: logout.php" );
+	exit;
+}
+/******************************* Helper functions *********************************************/
+function getexercises( $userID, $connection, $category )
+{
+	$query = "SELECT exercise FROM flexercise_type WHERE user_id={$userID} AND category='" . $category . "'";
+	$results = @ mysql_query( $query, $connection );
+
+	$xml .= "<exercises>";
+	if( mysql_num_rows( $results) > 0 )
+	{
+		while( $row = mysql_fetch_array( $results ) )
+		{
+			$exercise = $row["exercise"];
+			$xml .= "<exercise>";
+			$xml .= "{$exercise}";
+			$xml .= "</exercise>";
+		}
+	}
+	else
+	{
+		/* We don't have any results. */
+		$xml .= "<exercise>";
+		$xml .= $category;
+		$xml .= "</exercise>";
+	}
+	$xml .= "</exercises>";
+
+	return $xml;
+}
+
+function getaddress( $userID, $connection )
+{
+	$query = "SELECT * FROM user_settings WHERE user_ID={$userID}";
+	if( $results = @ mysql_query( $query, $connection ) )
+	{
+		$row = mysql_fetch_array( $results );
+
+		$streetAddr = $row["StreetAddr"];
+		$City = $row["City"];
+		$State = $row["State"];
+		$ZipCode = $row["ZipCode"];
+	}
+	else
+	{
+		// Populate the address with a standard address then.
+		$streetAddr = "600 S Washtington St";
+		$City = "Carthage";
+		$State = "NY";
+		$ZipCode = "13619";
+	}
+
+	$xml .= "<address>";
+	$xml .= "<param id='1'>";
+	$xml .= "{$streetAddr}";
+	$xml .= "</param>";
+	$xml .= "<param id='2'>";
+	$xml .= "{$City}";
+	$xml .= "</param>";
+	$xml .= "<param id='3'> ";
+	$xml .= "{$State}";
+	$xml .= "</param>";
+	$xml .= "<param id='4'>";
+	$xml .= "{$ZipCode}";
+	$xml .= "</param>";
+	$xml .= "</address>";
+
+	return $xml;
+}
+
+function savetemplate( $userID, $connection, $xml_data )
+{
+	$recordsSaved = 0;
+	$exercise = simplexml_load_string( $xml_data );
+
+	foreach($exercise->row as $row)
+	{
+		$templateName = $row->desc;
+		$catexercisePair = explode( ":", $row->exercise_desc);
+		$setNum = $row->set;
+		if( strcmp($row->reps, "" ) )
+			$reps = $row->reps;
+		else
+			$reps = 0;
+		if( strcmp($row->weight, "" ) )
+			$weight = $row->weight;
+		else
+			$weight = 0;
+	
+		// Fetch the exercise Id from the flexercise_type table.
+		$query = "SELECT exercise_type_id FROM flexercise_type WHERE user_id={$userID} AND category='" . $catexercisePair[0] ."' AND exercise='" . $catexercisePair[1] . "'";
+		$result = @ mysql_query( $query, $connection );
+		$rows = mysql_fetch_array( $result );
+		$exerciseID = $rows['exercise_type_id'];
+
+		// Save the current row into the flexercise_templates table
+		$query = "INSERT INTO flexercise_templates (user_id, description, exercise_type_id, set_number, reps, weight) VALUES ({$userID}, '$templateName', {$exerciseID}, {$setNum}, {$reps}, {$weight})";
+		$result = @ mysql_query( $query, $connection );
+		if( !result )
+			$error = true;
+		else
+		{
+			$error = false;
+			$recordsSaved++;
+		}
+	}
+
+	if( !$error )
+		$msg = "<saveTemplate>" . "<recordssaved>" . $recordsSaved . "</recordssaved>" ."<template>" . $templateName . "</template>" . "</saveTemplate>";
+	else
+		$msg = "<saveTemplate>" . "<error>" . "There was an error saving your template!" . "</error>" . "</saveTemplate>";
+
+	return $msg;
+}
+
+function deletetemplate( $userID, $connection, $template )
+{
+	$msg = "<deleteTemplate>";
+	$query = "DELETE FROM flexercise_templates WHERE user_id={$userID} and description='" . $template . "'";
+	$result = @ mysql_query( $query, $connection );
+
+	if( !$result )
+		$msg .= "<error>" . "Template: " . $template . " was not deleted!" . "</error>";
+	else
+		$msg .= "<deleted>" . $template . "</deleted>";
+	$msg .= "</deleteTemplate>";
+
+	return $msg;
+}
+
+function loadtemplate( $userID, $connection, $template )
+{
+	$prevExercise = "";
+	$count = 0;
+
+	/* Get the template data from the user requested $template */
+	$query = "SELECT * FROM flexercise_type NATURAL JOIN flexercise_templates WHERE user_id={$userID} AND description='" . $template . "'";
+	$results = @ mysql_query( $query, $connection );
+
+	/* Create the XML file to send over to the client. */
+	$msg = "<exercises>";
+	$msg .= "<table>";
+	while( $row = mysql_fetch_array( $results ) )
+	{
+		if( strcmp( $prevExercise, $row["exercise"] ) && $count )
+			$msg .= "</table>" . "<table>";
+
+		$msg .= "<row>";
+		$msg .= "<exercise_desc>" . $row["category"] . ":" . $row["exercise"] . "</exercise_desc>";
+		$msg .= "<set>" . $row["set_number"] . "</set>";
+		$msg .= "<reps>" . $row["reps"] . "</reps>";
+		$msg .= "<weight>" . $row["weight"] . "</weight>";
+		$msg .= "</row>";
+		$prevExercise = $row["exercise"];
+		$count++;
+		
+	}
+	$msg .= "</table>";
+	$msg .= "</exercises>";
+
+	return $msg;
+}
+
+function saveday( $userID, $connection, $xml_data )
+{
+	$recordSaved = 0;
+	$xmldoc = simplexml_load_string( $xml_data );
+
+	/* First we need the start time and duration of the workout and convert duration to 
+	   seconds, and get the date of the workout. */
+	$startTime = $xmldoc->starttime;
+	$duration = $xmldoc->duration;
+	$seconds = convert_time_seconds( $xmldoc->duration );
+	$date = $xmldoc->date;
+	$type = $xmldoc->type;
+	$notes = $xmldoc->notes;
+	$strId = $xmldoc->strid;
+
+	/* Check to see if we are going to update a current record or creating a new one */
+	if( !strcmp( $strId, "0" ) )
+	{
+		/* Now create the initial record in flstrength table */
+		$query = "INSERT INTO flstrength (exercises_id, plan_type, workout_date, time_of_day, duration, notes, seconds, user_id) VALUES ( NULL, '$type', '$date', '$startTime', '$duration', '$notes', {$seconds}, {$userID} )";
+		$result = @ mysql_query( $query, $connection );
+	}
+	else
+	{
+		/* Delete all the records in the flexercises table to be replaced with the current data set. */
+		$query = "DELETE FROM fl_exercises WHERE exercises_id={$strID} AND user_id={$userID}";
+		$result = @ mysql_query( $query, $connection );
+
+		/* Update the current record then in the flstrength table */
+		$query = "UPDATE flstrength SET duration='" . $duration . "', seconds={$seconds}, notes='" . $notes . "' WHERE exercises_id={$strId} AND user_id={$userID}";
+		$result = @ mysql_query( $query, $connection );
+	}
+
+	if( !result )
+	{
+		$msg = "<saveDay>" . "<error>" . "Unable to create record in flstrength!" . "</error>" . "</saveDay>";
+		return $msg;
+	}
+	else
+	{
+		/* Get the id for the just created strength record. */
+		$query = "SELECT exercises_id FROM flstrength WHERE user_id={$userID} ORDER BY exercises_id DESC";
+		$result = @ mysql_query( $query, $connection );
+		$row = mysql_fetch_array( $result );
+		$exercisesID = $row["exercises_id"];
+
+		foreach($xmldoc->row as $row)
+		{
+			$catexercisePair = explode( ":", $row->exercise_desc);
+			$setNum = $row->set;
+			if( strcmp($row->reps, "" ) )
+				$reps = $row->reps;
+			else
+				$reps = 0;
+			if( strcmp($row->weight, "" ) )
+				$weight = $row->weight;
+			else
+				$weight = 0;
+	
+			// Fetch the exercise Id from the flexercise_type table.
+			$query = "SELECT exercise_type_id FROM flexercise_type WHERE user_id={$userID} AND category='" . $catexercisePair[0] ."' AND exercise='" . $catexercisePair[1] . "'";
+			$result = @ mysql_query( $query, $connection );
+			$rows = mysql_fetch_array( $result );
+			$exerciseID = $rows['exercise_type_id'];
+
+			// Save the current row into the flexercises table
+			$query = "INSERT INTO flexercises (exercises_id, exercise_type_id, set_number, reps, weight) VALUES ({$exercisesID}, {$exerciseID}, {$setNum}, {$reps}, {$weight})";
+			$result = @ mysql_query( $query, $connection );
+			if( !result )
+				$error = true;
+			else
+			{
+				$error = false;
+				$recordsSaved++;
+			}
+		}
+
+		if( !$error )
+			$msg = "<saveTemplate>" . "<recordssaved>" . $recordsSaved . "</recordssaved>" . "</saveTemplate>";
+		else
+			$msg = "<saveDay>" . "<error>" . "There was an error saving your workout" . "</error>" . "</saveDay>";
+
+	}
+	return $strID;
+}
+?>

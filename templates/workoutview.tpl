@@ -1,0 +1,106 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.23.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlsn="http://www.w3.org/1999/xhtml">
+	<head>
+		<title>Fitlog Training</title>
+		<meta http-equiv="Content-Type"
+		    content="text/html; charset=utf-8"/>
+	<script src="scripts/fitlog_scripts.js" type="text/javascript"></script>
+	<link href="style1.css" rel="stylesheet" type="text/css"/>
+	</head>
+	<body>
+	  <div id="header">
+	    <div id="sitebranding">
+		<h1>Fitlog</h1>
+	    </div>
+	    <div id="tagline">
+		<p>Track all your fitness training needs</p>	
+	    </div>
+	  </div>  <!-- end of header div -->
+	  <div id="navigation">
+		<ul>
+		  <li><a href="dashboard.php">Home</a></li>
+		  <li><a href="settings.php">Settings</a></li>
+		  <li><a href="reports.php">Reports</a></li>
+		  <li><a href="workoutview.php">Work Outs</a></li>
+			<ul>
+				<li><a href="strengthview.php">Strength</a></li>
+				<li><a href="exercises.php">Exercises</a></li>
+				<li>Other</li>		
+			</ul>
+		  <li><a href="routes.php">Routes</a></li>
+		  <li><a href="trainingplans.php">Training Plans</a></li>
+		  <li><a href="downloads.php">Downloads</a></li>
+		  <li><a href="about.php">About Fitlog</a></li>
+		  <li><a href="logout.php">Log Out</a></li>
+		</ul>
+	  </div> <!-- end of navigation div -->
+	  <div id="bodycontent">
+	<!-- BEGIN NAVIGATION -->
+	<h2>{MONTH}</h2>
+	<h2>
+	    <form action="no action">
+	    <a href="ftnav.php?month={PREVIOUS}&source=summary&type={TYPE}"><<</a> 
+	    <a href="ftnav.php?source=summary&type={TYPE}">Current</a> 
+	    <a href="ftnav.php?month={NEXT}&source=summary&type={TYPE}">>></a>
+	    <select name="Type" onChange="reloadWorkoutView(this.form)">
+		<option value="Actual" {SELECTEDA}>Actual</option>
+		<option value="Planned" {SELECTEDP}>Planned</option>
+	    </select>
+	    </form>
+	</h2>
+	<!-- END NAVIGATION -->
+	 <table class="workoutview">
+	 <tr>
+	 <th COLSPAN=4 WIDTH=257 HEIGHT=20 ALIGN=CENTER VALIGN=MIDDLE>Monday</th>
+	 <th COLSPAN=4 WIDTH=257 HEIGHT=20 ALIGN=CENTER VALIGN=MIDDLE>Tuesday</th>
+	 <th COLSPAN=4 WIDTH=257 HEIGHT=20 ALIGN=CENTER VALIGN=MIDDLE>Wednesday</th>
+	 <th COLSPAN=4 WIDTH=257 HEIGHT=20 ALIGN=CENTER VALIGN=MIDDLE>Thursday</th>
+	 <th COLSPAN=4 WIDTH=257 HEIGHT=20 ALIGN=CENTER VALIGN=MIDDLE>Friday</th>
+	 <th COLSPAN=4 WIDTH=257 HEIGHT=20 ALIGN=CENTER VALIGN=MIDDLE>Saturday</th>
+	 <th COLSPAN=4 WIDTH=257 HEIGHT=20 ALIGN=CENTER VALIGN=MIDDLE>Sunday</th>
+	 <th COLSPAN=4 WIDTH=257 HEIGHT=20 ALIGN=CENTER VALIGN=MIDDLE>Totals</th>
+	 </tr>
+	 <!-- BEGIN WEEK -->
+	 <tr>
+	 <td class="datecell"><a href="workouts.php?edit_date={UPDATE1}&type={TYPE}">{ONE}</a></td><td class="uppercell"></td><td class="uppercell"></td><td class="upperrightcell"><a href="fitlogdelete.php?del_date={DELALLDATE1}&activity=a&source=workouts&type={TYPE}">{DELALL1}</a></td>
+	 <td class="datecell"><a href="workouts.php?edit_date={UPDATE2}&type={TYPE}">{TWO}</a></td><td class="uppercell"></td><td class="uppercell"></td><td class="upperrightcell"><a href="fitlogdelete.php?del_date={DELALLDATE2}&activity=a&source=workouts&type={TYPE}">{DELALL2}</a></td>
+	 <td class="datecell"><a href="workouts.php?edit_date={UPDATE3}&type={TYPE}">{THREE}</a></td><td class="uppercell"></td><td class="uppercell"></td><td class="upperrightcell"><a href="fitlogdelete.php?del_date={DELALLDATE3}&activity=a&source=workouts&type={TYPE}">{DELALL3}</a></td>
+	 <td class="datecell"><a href="workouts.php?edit_date={UPDATE4}&type={TYPE}">{FOUR}</a></td><td class="uppercell"></td><td class="uppercell"></td><td class="upperrightcell"><a href="fitlogdelete.php?del_date={DELALLDATE4}&activity=a&source=workouts&type={TYPE}">{DELALL4}</a></td>
+	 <td class="datecell"><a href="workouts.php?edit_date={UPDATE5}&type={TYPE}">{FIVE}</a></td><td class="uppercell"></td><td class="uppercell"></td><td class="upperrightcell"><a href="fitlogdelete.php?del_date={DELALLDATE5}&activity=a&source=workouts&type={TYPE}">{DELALL5}</a></td>
+	 <td class="datecell"><a href="workouts.php?edit_date={UPDATE6}&type={TYPE}">{SIX}</a></td><td class="uppercell"></td><td class="uppercell"></td><td class="upperrightcell"><a href="fitlogdelete.php?del_date={DELALLDATE6}&activity=a&source=workouts&type={TYPE}">{DELALL6}</a></td>
+	 <td class="datecell"><a href="workouts.php?edit_date={UPDATE7}&type={TYPE}">{SEVEN}</a></td><td class="uppercell"></td><td class="uppercell"></td><td class="upperrightcell"><a href="fitlogdelete.php?del_date={DELALLDATE7}&activity=a&source=workouts&type={TYPE}">{DELALL7}</a></td>
+	 </tr>
+	 <tr><td class="leftcell">{SWIM1}</td><td>{SWIMDIST1}</td><td>{SWIMDUR1}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={SWIMDELDATE1}&activity=s&source=workouts&type={TYPE}">{SWIMDEL1}</a></td>
+	     <td class="leftcell">{SWIM2}</td><td>{SWIMDIST2}</td><td>{SWIMDUR2}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={SWIMDELDATE2}&activity=s&source=workouts&type={TYPE}">{SWIMDEL2}</a></td>
+	     <td class="leftcell">{SWIM3}</td><td>{SWIMDIST3}</td><td>{SWIMDUR3}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={SWIMDELDATE3}&activity=s&source=workouts&type={TYPE}">{SWIMDEL3}</a></td>
+	     <td class="leftcell">{SWIM4}</td><td>{SWIMDIST4}</td><td>{SWIMDUR4}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={SWIMDELDATE4}&activity=s&source=workouts&type={TYPE}">{SWIMDEL4}</a></td>
+	     <td class="leftcell">{SWIM5}</td><td>{SWIMDIST5}</td><td>{SWIMDUR5}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={SWIMDELDATE5}&activity=s&source=workouts&type={TYPE}">{SWIMDEL5}</a></td>
+	     <td class="leftcell">{SWIM6}</td><td>{SWIMDIST6}</td><td>{SWIMDUR6}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={SWIMDELDATE6}&activity=s&source=workouts&type={TYPE}">{SWIMDEL6}</a></td>
+	     <td class="leftcell">{SWIM7}</td><td>{SWIMDIST7}</td><td>{SWIMDUR7}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={SWIMDELDATE7}&activity=s&source=workouts&type={TYPE}">{SWIMDEL7}</a></td></tr>
+	 <tr><td class="leftcell">{BIKE1}</td><td>{BIKEDIST1}</td><td>{BIKEDUR1}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={BIKEDELDATE1}&activity=b&source=workouts&type={TYPE}">{BIKEDEL1}</a></td>
+	     <td class="leftcell">{BIKE2}</td><td>{BIKEDIST2}</td><td>{BIKEDUR2}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={BIKEDELDATE2}&activity=b&source=workouts&type={TYPE}">{BIKEDEL2}</a></td>
+	     <td class="leftcell">{BIKE3}</td><td>{BIKEDIST3}</td><td>{BIKEDUR3}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={BIKEDELDATE3}&activity=b&source=workouts&type={TYPE}">{BIKEDEL3}</a></td>
+	     <td class="leftcell">{BIKE4}</td><td>{BIKEDIST4}</td><td>{BIKEDUR4}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={BIKEDELDATE4}&activity=b&source=workouts&type={TYPE}">{BIKEDEL4}</a></td>
+	     <td class="leftcell">{BIKE5}</td><td>{BIKEDIST5}</td><td>{BIKEDUR5}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={BIKEDELDATE5}&activity=b&source=workouts&type={TYPE}">{BIKEDEL5}</a></td>
+	     <td class="leftcell">{BIKE6}</td><td>{BIKEDIST6}</td><td>{BIKEDUR6}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={BIKEDELDATE6}&activity=b&source=workouts&type={TYPE}">{BIKEDEL6}</a></td>
+	     <td class="leftcell">{BIKE7}</td><td>{BIKEDIST7}</td><td>{BIKEDUR7}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={BIKEDELDATE7}&activity=b&source=workouts&type={TYPE}">{BIKEDEL7}</a></td></tr>
+	 <tr><td class="leftcell">{RUN1}</td><td>{RUNDIST1}</td><td>{RUNDUR1}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={RUNDELDATE1}&activity=r&source=workouts&type={TYPE}">{RUNDEL1}</a></td>
+	     <td class="leftcell">{RUN2}</td><td>{RUNDIST2}</td><td>{RUNDUR2}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={RUNDELDATE2}&activity=r&source=workouts&type={TYPE}">{RUNDEL2}</a></td>
+	     <td class="leftcell">{RUN3}</td><td>{RUNDIST3}</td><td>{RUNDUR3}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={RUNDELDATE3}&activity=r&source=workouts&type={TYPE}">{RUNDEL3}</a></td>
+	     <td class="leftcell">{RUN4}</td><td>{RUNDIST4}</td><td>{RUNDUR4}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={RUNDELDATE4}&activity=r&source=workouts&type={TYPE}">{RUNDEL4}</a></td>
+	     <td class="leftcell">{RUN5}</td><td>{RUNDIST5}</td><td>{RUNDUR5}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={RUNDELDATE5}&activity=r&source=workouts&type={TYPE}">{RUNDEL5}</a></td>
+	     <td class="leftcell">{RUN6}</td><td>{RUNDIST6}</td><td>{RUNDUR6}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={RUNDELDATE6}&activity=r&source=workouts&type={TYPE}">{RUNDEL6}</a></td>
+	     <td class="leftcell">{RUN7}</td><td>{RUNDIST7}</td><td>{RUNDUR7}</td><td class="rightcell"><a href="fitlogdelete.php?del_date={RUNDELDATE7}&activity=r&source=workouts&type={TYPE}">{RUNDEL7}</a></td></tr>
+	 <tr><td class="lowerleftcell"></td><td class="lowercell"></td><td class="lowercell"></td><td class="lowerrightcell"></td>
+	     <td class="lowerleftcell"></td><td class="lowercell"></td><td class="lowercell"></td><td class="lowerrightcell"></td>
+	     <td class="lowerleftcell"></td><td class="lowercell"></td><td class="lowercell"></td><td class="lowerrightcell"></td>
+	     <td class="lowerleftcell"></td><td class="lowercell"></td><td class="lowercell"></td><td class="lowerrightcell"></td>
+	     <td class="lowerleftcell"></td><td class="lowercell"></td><td class="lowercell"></td><td class="lowerrightcell"></td>
+	     <td class="lowerleftcell"></td><td class="lowercell"></td><td class="lowercell"></td><td class="lowerrightcell"></td>
+	     <td class="lowerleftcell"></td><td class="lowercell"></td><td class="lowercell"></td><td class="lowerrightcell"></td></tr>
+	 <!-- END WEEK -->
+	 </table>
+	 </div> <!-- End of bodycontent div -->
+	</body>
+</html>

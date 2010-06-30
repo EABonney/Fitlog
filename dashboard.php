@@ -1,0 +1,496 @@
+<?php
+/* File: 	dashboard.php
+   Desciption:	Implementation file for the users' dashboard page.
+   Author:	Eric A. Bonney
+   Date:	September 25, 2009
+   Updated:	
+*/
+require_once "includes/db.inc";
+require_once "HTML/Template/IT.php";
+require_once "Date.php";
+require_once "Date/Calc.php";
+require_once 'Calendar/Month/Weekdays.php';
+require_once 'Image/Graph.php';
+require_once "fitlogfunc.php";
+
+// Create the template and load the correct template file.
+$template = new HTML_Template_IT( "./templates" );
+$template->loadTemplatefile( "dashboard.tpl", true, true );
+
+session_start();
+
+// Get a connection to the database.
+if( !($connection = @mysql_connect( $hostName, $username, $password ) ) )
+	die( "Could not connect to database" );
+
+// Now that we are connected, select the correct database.
+if( !mysql_select_db( $databaseName, $connection ) )
+	showerror();
+
+$userID = getUserID( $connection );
+
+//See if we have an authenticated user, if so, setup the appropriate message.
+if( isset( $_SESSION["loggedinUserName"] ) )
+{
+	$date = new Date();
+	$Month = new Calendar_Month_Weekdays( $date->getYear(), $date->getMonth(), 1 );
+	$Month->build();
+
+	//Popluate the user's dashboard page
+	$template->setCurrentBlock( "NAVIGATION" );
+	$template->setVariable( "DATE", $date->format( "%A %b %e, %Y" ) );
+	$template->setVariable( "GREETING", setupGreeting() );
+	$displayName = getUserFirstName( $connection, $userID );
+	if( !$displayName )
+		$displayName = $_SESSION["loggedinUserName"];
+	$template->setVariable( "USER", $displayName . "!" );
+	$template->parseCurrentBlock();
+
+	// Setup and load the quickentry calendar for actual workout data entry.
+	$template->setCurrentBlock( "WEEKLY" );
+	loadQuickEntry( $template, $Month, $connection );
+
+	// Setup the weekly graphs for actual and planned workout volumes.
+	get_weekly_volume_graph( $userID, $connection );
+
+	// Setup current month, current year and prior year volume/dist blocks
+	get_current_month( $template, $userID, $connection );
+	get_current_year( $template, $userID, $connection );
+	get_prior_month( $template, $userID, $connection );
+	get_prior_year( $template, $userID, $connection );
+}
+else
+{
+	//Seems the user has attempted to navigate directly to the dashboard without
+	//logging in. Send them to the logout page with an error message.
+	$_SESSION["headerMessage"] = "Error!!";
+	$_SESSION["message"] = "You must first log into the system before you can view the page.";
+
+	// Send user to the logout page.
+	header( "Location: logout.php" );
+	exit;
+}
+
+//Show the user's Dashboard page.
+$template->show();
+
+/********************************* Helper Functions ******************************************/
+function setupGreeting()
+{
+	// See what time we have to setup the greeting for the user.
+	$currentHour = date( "H" );
+
+	if( $currentHour < 12 )
+		$message = "Good morning ";
+	elseif( $currentHour >=12 && $currentHour < 17 )
+		$message = "Good afternoon ";
+	else
+		$message = "Good evening ";
+
+	return $message;
+}
+
+function loadQuickEntry( $template, $Month, $connection )
+{
+	while( $Day = $Month->fetch() )
+	{
+		if( $Day->isFirst() )
+		{
+			// Set the begining block area to {ONE}
+			// and set the current block
+			$currentDay = 1;
+		}
+
+		$curyear = strval( $Day->thisYear() );
+		$curmonth = strval( $Day->thisMonth() );
+		$curday = strval( $Day->thisDay() );
+		$txtDay =  "$curyear-$curmonth-$curday";
+
+		if( !$Day->isEmpty() )
+		{
+			switch( $currentDay )
+			{
+				case 1:
+					$template->setVariable( "DATE1", $Day->thisDay() );
+					$template->setVariable( "DAYONE", $txtDay );
+					break;
+				case 2:
+					$template->setVariable( "DATE2", $Day->thisDay() );
+					$template->setVariable( "DAYTWO", $txtDay );
+					break;
+				case 3:
+					$template->setVariable( "DATE3", $Day->thisDay() );
+					$template->setVariable( "DAYTHREE", $txtDay );
+					break;
+				case 4:
+					$template->setVariable( "DATE4", $Day->thisDay() );
+					$template->setVariable( "DAYFOUR", $txtDay );
+					break;
+				case 5:
+					$template->setVariable( "DATE5", $Day->thisDay() );
+					$template->setVariable( "DAYFIVE", $txtDay );
+					break;
+				case 6:
+					$template->setVariable( "DATE6", $Day->thisDay() );
+					$template->setVariable( "DAYSIX", $txtDay );
+					break;
+				case 7:
+					$template->setVariable( "DATE7", $Day->thisDay() );
+					$template->setVariable( "DAYSEVEN", $txtDay );
+					break;
+			}
+		}
+
+		// Move to the next block on the calendar view.
+		$currentDay = $currentDay + 1;
+
+		if( $Day->isLast() )
+		{
+			// parse the block
+			$template->parseCurrentBlock();
+			$template->setCurrentBlock( "WEEKLY" );
+		}	
+
+	}
+
+}
+
+function get_weekly_volume_graph( $userID, $connection )
+{
+	$beg_date = new Date();
+	$end_date = new Date();
+	$wk = array( 0, 0, 0, 0, 0, 0, 0 );
+	$wk_actual = array( 0, 0, 0, 0, 0, 0, 0 );
+	$label = array( 0, 0, 0, 0, 0, 0, 0 );
+	$filename = array( "filename"=>"/var/www/vanhlebarsoftware/fitlog/graphs/wklygraph.jpg");
+
+	// Get current weeks and prior three weeks volume numbers and the next three weeks.
+	$day_of_wk = $beg_date->getDayOfWeek();
+	$beg_date->addDays( -($day_of_wk - 1) + 21);
+	$end_date->copy( $beg_date );
+	$end_date->addDays( 6 );
+
+	for( $i=0; $i<7; $i++ )
+	{
+		// Get the planned volume for this particular week.
+		$query = "SELECT SUM(seconds) AS seconds FROM flmain WHERE workout_date>='" . $beg_date->format( "%Y-%m-%d" ) . "' AND workout_date<='" . $end_date->format( "%Y-%m-%d" ) . "' AND user_id=" . $userID . " AND plan_type='p'";
+
+		$queryStr = "SELECT SUM(seconds) AS seconds FROM flstrength WHERE workout_date>='" . $beg_date->format( "%Y-%m-%d" ) . "' AND workout_date<='" . $end_date->format( "%Y-%m-%d" ) . "' AND user_id=" . $userID . " AND plan_type='p'";
+
+		$result = @ mysql_query( $query, $connection );
+		$resultStr = @mysql_query( $query, $connection );
+
+		if( $result || $resultStr )
+		{
+			$tmp = 0;
+
+			if( $result )
+			{
+				$row = mysql_fetch_array( $result );
+				$tmp = convert_seconds_minutes( $row["seconds"] );
+			}
+
+			if( $resultStr )
+			{
+				$rowStr = mysql_fetch_array( $resultStr );
+				$tmp += convert_seconds_minutes( $rowStr["seconds"] );
+			}
+			$wk[$i] = $tmp;
+		}
+		else
+			$wk[$i] = 0;	
+
+		// Get the actual volume for this particular week.
+		$query = "SELECT SUM(seconds) AS seconds FROM flmain WHERE workout_date>='" . $beg_date->format( "%Y-%m-%d" ) . "' AND workout_date<='" . $end_date->format( "%Y-%m-%d" ) . "' AND user_id=" . $userID . " AND plan_type='a'";
+
+		$queryStr = "SELECT SUM(seconds) AS seconds FROM flstrength WHERE workout_date>='" . $beg_date->format( "%Y-%m-%d" ) . "' AND workout_date<='" . $end_date->format( "%Y-%m-%d" ) . "' AND user_id=" . $userID . " AND plan_type='a'";
+
+		$result = @ mysql_query( $query, $connection );
+		$resultStr = @ mysql_query( $queryStr, $connection );
+
+		if( $result || $resultStr )
+		{
+			$tmp = 0;
+
+			if( $result )
+			{
+				$row = mysql_fetch_array( $result );
+				$tmp = convert_seconds_minutes( $row["seconds"] );
+			}
+
+			if( $resultStr )
+			{
+				$rowStr = mysql_fetch_array( $resultStr );
+				$tmp += convert_seconds_minutes( $rowStr["seconds"] );
+			}
+			$wk_actual[$i] = $tmp;
+		}
+		else
+			$wk_actual[$i] = 0;	
+
+		// Create the labels.
+		$label[$i] = $end_date->format( "%m/%d" );
+
+		// Move the dates back by one week.
+		$beg_date->addDays( -7 );
+		$end_date->addDays( -7 );
+	}
+
+	for( $i=0; $i<7;$i++)
+	{
+
+	}
+	//Setup the graph.
+	$Graph =& Image_Graph::factory('graph', array(300, 210, TRUE));
+	$Graph->add( Image_Graph::factory('title', array('Weekly Volume - Actual vs. Planned'), 12) );
+	$Plotarea =& $Graph->addNew('plotarea');
+	$Dataset =& Image_Graph::factory('dataset');
+	$Dataset1 =& Image_Graph::factory('dataset');
+	
+	// Add the actual volume to the graph.
+	$Dataset1->addPoint( $label[6], $wk_actual[6] );
+	$Dataset1->addPoint( $label[5], $wk_actual[5] );
+	$Dataset1->addPoint( $label[4], $wk_actual[4] );
+	$Dataset1->addPoint( $label[3], $wk_actual[3] );
+	$Dataset1->addPoint( $label[2], $wk_actual[2] );
+	$Dataset1->addPoint( $label[1], $wk_actual[1] );
+	$Dataset1->addPoint( $label[0], $wk_actual[0] );
+
+	// Add the planned volume to the graph.
+	$Dataset->addPoint( $label[6], $wk[6] );
+	$Dataset->addPoint( $label[5], $wk[5] );
+	$Dataset->addPoint( $label[4], $wk[4] );
+	$Dataset->addPoint( $label[3], $wk[3] );
+	$Dataset->addPoint( $label[2], $wk[2] );
+	$Dataset->addPoint( $label[1], $wk[1] );
+	$Dataset->addPoint( $label[0], $wk[0] );
+
+	// Plot the actual data to the graph.
+	$Plot =& $Plotarea->addNew('line', &$Dataset);
+	$Plot1 =& $Plotarea->addNew( 'bar', &$Dataset1);
+	$Plot1->setFillColor( 'green@.8' );
+
+	// Set the axis titles.
+	$YAxis = & $Plotarea->getAxis(IMAGE_GRAPH_AXIS_Y);
+	$YAxis->setTitle( 'Minutes', 'vertical' );
+	$XAxis = & $Plotarea->getAxis(IMAGE_GRAPH_AXIS_X);
+	$XAxis->setTitle( "Week", array('angle'=>0) );
+	
+	//Output the finished graph to the graphs directory.
+	$result = $Graph->done( $filename );
+
+	if( $result )
+		var_dump( "error creating graph!" ); 
+}
+
+function get_current_month( $template, $userID, $connection )
+{
+	$calc = new Date_Calc();
+	$beg_date = new Date();
+	$end_date = new Date();
+
+	// Get current month dates.
+	$beg_date->setDayMonthYear( 1, $beg_date->getMonth(), $beg_date->getYear() );
+	$end_date->setDayMonthYear( $calc->getLastDayOfMonth( $beg_date->getMonth(), $beg_date->getYear() ), $beg_date->getMonth(), $beg_date->getYear() );
+
+	$query = "SELECT SUM(seconds) AS seconds, SUM(distance) AS distance, sbr_type FROM flmain WHERE workout_date>='" . $beg_date->format( "%Y-%m-%d" ) . "' AND workout_date<='" . $end_date->format( "%Y-%m-%d" ) . "' AND user_id=" . $userID . " AND plan_type='a' GROUP BY sbr_type";
+	$results = @ mysql_query( $query, $connection );
+
+	$template->setCurrentBlock( "CURRENTMNTH" );
+	$template->setVariable( "MONTHNAME", $beg_date->format( "%B %Y" ) );
+
+	if( $results )
+	{
+		while( $row = mysql_fetch_array( $results ) )
+		{
+			switch( $row["sbr_type"] )
+			{
+				case 's':
+					$template->setVariable( "SWIMDUR", round( convert_seconds_minutes( $row["seconds"] ), 2 ) . "min" );
+					$template->setVariable( "SWIMDIST", $row["distance"] . " yds" );
+					break;
+				case 'b':
+					$template->setVariable( "BIKEDUR", round(  convert_seconds_minutes( $row["seconds"] ), 2 ) . "  min"  );
+					$template->setVariable( "BIKEDIST", $row["distance"] . "  mi" );
+					break;
+				case 'r':
+					$template->setVariable( "RUNDUR", round( convert_seconds_minutes( $row["seconds"] ), 2 ) . " min" );
+					$template->setVariable( "RUNDIST", $row["distance"] . " mi" );
+					break;
+			}
+		}
+	}
+
+	/* Get the strength minutes */
+	$query = "SELECT SUM(seconds) AS seconds FROM flstrength WHERE workout_date>='" . $beg_date->format( "%Y-%m-%d" ) . "' AND workout_date<='" . $end_date->format( "%Y-%m-%d" ) . "' AND user_id=" . $userID . " AND plan_type='a'";
+	$results = @ mysql_query( $query, $connection );
+
+	if( $results )
+	{
+		while( $row = mysql_fetch_array( $results ) )
+		{
+			$template->setVariable( "STRDUR", round( convert_seconds_minutes( $row["seconds"] ), 2 ) . " min" );
+		}
+	}
+	$template->parseCurrentBlock();
+}
+
+function get_current_year( $template, $userID, $connection )
+{
+	$beg_date = new Date();
+	$end_date = new Date();
+
+	// Get current month dates.
+	$beg_date->setDayMonthYear( 1, 1, $beg_date->getYear() );
+	$end_date->setDayMonthYear( 31, 12, $beg_date->getYear() );
+
+	$query = "SELECT SUM(seconds) AS seconds, SUM(distance) AS distance, sbr_type FROM flmain WHERE workout_date>='" . $beg_date->format( "%Y-%m-%d" ) . "' AND workout_date<='" . $end_date->format( "%Y-%m-%d" ) . "' AND user_id=" . $userID . " AND plan_type='a' GROUP BY sbr_type";
+	$results = @ mysql_query( $query, $connection );
+
+	$template->setCurrentBlock( "CURRENTYR" );
+	$template->setVariable( "MONTHNAME", $beg_date->format( "%Y" ) );
+
+	if( $results )
+	{
+		while( $row = mysql_fetch_array( $results ) )
+		{
+			switch( $row["sbr_type"] )
+			{
+				case 's':
+					$template->setVariable( "SWIMDUR", round( convert_seconds_minutes( $row["seconds"] ), 2 ) . "min" );
+					$template->setVariable( "SWIMDIST", $row["distance"] . " yds" );
+					break;
+				case 'b':
+					$template->setVariable( "BIKEDUR", round(  convert_seconds_minutes( $row["seconds"] ), 2 ) . "  min"  );
+					$template->setVariable( "BIKEDIST", $row["distance"] . "  mi" );
+					break;
+				case 'r':
+					$template->setVariable( "RUNDUR", round( convert_seconds_minutes( $row["seconds"] ), 2 ) . " min" );
+					$template->setVariable( "RUNDIST", $row["distance"] . " mi" );
+					break;
+			}
+		}
+	}
+
+	/* Get the strength minutes */
+	$query = "SELECT SUM(seconds) AS seconds FROM flstrength WHERE workout_date>='" . $beg_date->format( "%Y-%m-%d" ) . "' AND workout_date<='" . $end_date->format( "%Y-%m-%d" ) . "' AND user_id=" . $userID . " AND plan_type='a'";
+	$results = @ mysql_query( $query, $connection );
+
+	if( $results )
+	{
+		while( $row = mysql_fetch_array( $results ) )
+		{
+			$template->setVariable( "STRDUR", round( convert_seconds_minutes( $row["seconds"] ), 2 ) . " min" );
+		}
+	}
+	$template->parseCurrentBlock();
+
+}
+
+function get_prior_month( $template, $userID, $connection )
+{
+	$calc = new Date_Calc();
+	$beg_date = new Date();
+	$end_date = new Date();
+	$beg_date->addMonths( -1 );
+
+	// Get current month dates.
+	$beg_date->setDayMonthYear( 1, $beg_date->getMonth(), $beg_date->getYear() );
+	$end_date->setDayMonthYear( $calc->getLastDayOfMonth( $beg_date->getMonth(), $beg_date->getYear() ), $beg_date->getMonth(), $beg_date->getYear() );
+
+	$query = "SELECT SUM(seconds) AS seconds, SUM(distance) AS distance, sbr_type FROM flmain WHERE workout_date>='" . $beg_date->format( "%Y-%m-%d" ) . "' AND workout_date<='" . $end_date->format( "%Y-%m-%d" ) . "' AND user_id=" . $userID . " AND plan_type='a' GROUP BY sbr_type";
+	$result = @ mysql_query( $query, $connection );
+
+	$template->setCurrentBlock( "PRIORMONTH" );
+	$template->setVariable( "MONTHNAME", $beg_date->format( "%B %Y" ) );
+
+	if( mysql_num_rows( $result ) > 0 )
+	{
+		while( $row = mysql_fetch_array( $result ) )
+		{
+			switch( $row["sbr_type"] )
+			{
+				case 's':
+					$template->setVariable( "SWIMDUR", round( convert_seconds_minutes( $row["seconds"] ), 2 ) . "min" );
+					$template->setVariable( "SWIMDIST", $row["distance"] . " yds" );
+					break;
+				case 'b':
+					$template->setVariable( "BIKEDUR", round(  convert_seconds_minutes( $row["seconds"] ), 2 ) . "  min"  );
+					$template->setVariable( "BIKEDIST", $row["distance"] . "  mi" );
+					break;
+				case 'r':
+					$template->setVariable( "RUNDUR", round( convert_seconds_minutes( $row["seconds"] ), 2 ) . " min" );
+					$template->setVariable( "RUNDIST", $row["distance"] . " mi" );
+					break;
+			}
+		}
+	}
+
+	/* Get the strength minutes */
+	$query = "SELECT SUM(seconds) AS seconds FROM flstrength WHERE workout_date>='" . $beg_date->format( "%Y-%m-%d" ) . "' AND workout_date<='" . $end_date->format( "%Y-%m-%d" ) . "' AND user_id=" . $userID . " AND plan_type='a'";
+	$results = @ mysql_query( $query, $connection );
+
+	if( $results )
+	{
+		while( $row = mysql_fetch_array( $results ) )
+		{
+			$template->setVariable( "STRDUR", round( convert_seconds_minutes( $row["seconds"] ), 2 ) . " min" );
+		}
+	}
+	$template->parseCurrentBlock();
+}
+
+function get_prior_year( $template, $userID, $connection )
+{
+	$calc = new Date_Calc();
+	$beg_date = new Date();
+	$end_date = new Date();
+
+	$beg_date->addYears( -1 );
+
+	// Get current month dates.
+	$beg_date->setDayMonthYear( 1, 1, $beg_date->getYear() );
+	$end_date->setDayMonthYear( 31, 12, $beg_date->getYear() );
+
+	$query = "SELECT SUM(seconds) AS seconds, SUM(distance) AS distance, sbr_type FROM flmain WHERE workout_date>='" . $beg_date->format( "%Y-%m-%d" ) . "' AND workout_date<='" . $end_date->format( "%Y-%m-%d" ) . "' AND user_id=" . $userID . " AND plan_type='a' GROUP BY sbr_type";
+	$result = @ mysql_query( $query, $connection );
+
+	$template->setCurrentBlock( "PRIORYR" );
+	$template->setVariable( "MONTHNAME", $beg_date->format( "%Y" ) );
+
+	if( mysql_num_rows( $result ) > 0 )
+	{
+		while( $row = mysql_fetch_array( $result ) )
+		{
+			switch( $row["sbr_type"] )
+			{
+				case 's':
+					$template->setVariable( "SWIMDUR", round( convert_seconds_minutes( $row["seconds"] ), 2 ) . "min" );
+					$template->setVariable( "SWIMDIST", $row["distance"] . " yds" );
+					break;
+				case 'b':
+					$template->setVariable( "BIKEDUR", round(  convert_seconds_minutes( $row["seconds"] ), 2 ) . "  min"  );
+					$template->setVariable( "BIKEDIST", $row["distance"] . "  mi" );
+					break;
+				case 'r':
+					$template->setVariable( "RUNDUR", round( convert_seconds_minutes( $row["seconds"] ), 2 ) . " min" );
+					$template->setVariable( "RUNDIST", $row["distance"] . " mi" );
+					break;
+			}
+		}
+	}
+
+	/* Get the strength minutes */
+	$query = "SELECT SUM(seconds) AS seconds FROM flstrength WHERE workout_date>='" . $beg_date->format( "%Y-%m-%d" ) . "' AND workout_date<='" . $end_date->format( "%Y-%m-%d" ) . "' AND user_id=" . $userID . " AND plan_type='a'";
+	$results = @ mysql_query( $query, $connection );
+
+	if( $results )
+	{
+		while( $row = mysql_fetch_array( $results ) )
+		{
+			$template->setVariable( "STRDUR", round( convert_seconds_minutes( $row["seconds"] ), 2 ) . " min" );
+		}
+	}
+	$template->parseCurrentBlock();
+}
+?>

@@ -1,0 +1,38 @@
+/*
+CSS style sheet for fitlog plugin
+
+Author: Eric A. Bonney
+Created: Feb 5, 2009
+
+*/
+table.history {
+    border-collapse: collapse;
+}
+
+table.history th, table.history td {
+    padding: 4px;
+    border: 1px solid #000066;
+}
+
+table.history th {
+    font-size: x-small;
+    text-align: left;
+    background: #241374;
+    color: #ffffff;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
+table.history td {
+    font-size: small;
+}
+
+table.history caption {
+    color: #000066;
+    font-size: small;
+    text-align: left;
+    padding-bottom: 5px;
+    font-weight: bold;
+}

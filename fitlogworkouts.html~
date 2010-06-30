@@ -1,0 +1,226 @@
+<?
+	// First let's check to see if a session has been started and if any of the elements have been set.
+	session_start();
+
+	// If $_SESSION["date_updated"] is set go use that date, otherwise, set it to today's date.
+	if( isset( $_SESSION["date_updated"] ) )
+		$date = new Date( $_SESSION["date_updated"] );
+	else
+	{
+		global $userdata;
+		get_currentuserinfo();
+		$date = new Date();
+		$_SESSION["date_updated"] = $date->format( "%Y-%m-%d" );
+		$result = get_daily_blognotes( $date->format( "%Y-%m-%d" ), $userdata->ID );
+
+		if( $result )
+		{
+			$_SESSION["blog_notes"] = $result;
+			$_SESSION["updating"] = true;
+		}
+	}
+
+	// Print out the date so the user knows what date they are working with.
+	 '<h2>' . $date->format( "%A %B %d, %Y" ) . '</h2>';
+
+	if( $_SESSION["updating"] )
+		fitnesslog_create_form( true );
+	else
+		fitnesslog_create_form( false );
+
+
+function fitnesslog_create_form( $updating )
+{
+	// Will need to figure out how to get the current user information from my own table.
+//	get_currentuserinfo();  
+	
+	 '<form action="/wp-content/plugins/fitnesslog/fitlogsubmit.php" method="post">';
+	 '<table>';
+	 '<tr><td></td><td align=center><h2>Swimming</h2></td><td></td><td align=center><h2>Biking</h2></td><td></td><td align=center><h2>Running</h2></td></tr>';
+	 '<td><input type="hidden" name="s_workoutdate" id="s_workoutdate" TABINDEX=1';
+	 ' value="';  $_SESSION["date_updated"];  '"/></td><td></td>';
+	 '<td><input type="hidden" name="b_workoutdate" id="b_workoutdate" TABINDEX=10';
+	 ' value="';  $_SESSION["date_updated"];  '"/></td><td></td>';
+	 '<td><input type="hidden" name="r_workoutdate" id="r_workoutdate" TABINDEX=20';
+	 ' value="';  $_SESSION["date_updated"];  '"/></td></tr>';
+
+	 '<tr><td><label for="workouttime">Workout time <span class="small">(hh:mm:ss)</span>:</label></td>';
+	 '<td><input type="text" name="s_workouttime" id="s_workouttime" TABINDEX=2';
+	 ' value="';  $_SESSION["s_workouttime"];  '"/></td><td></td>';
+	 '<td><input type="text" name="b_workouttime" id="b_workouttime" TABINDEX=11';
+	 ' value="';  $_SESSION["b_workouttime"];  '"/></td><td></t>';
+	 '<td><input type="text" name="r_workouttime" id="r_workouttime" TABINDEX=21';
+	 ' value="';  $_SESSION["r_workouttime"];  '"/></td></tr>';
+
+
+	 '<tr><td><label for="duration">Total Time <span class="small">(hh:mm:ss)</span>:</label></td>';
+	 '<td><input type="text" name="s_duration" id="s_duration" TABINDEX=3';
+	if( $updating )
+	{	 ' value="';  $_SESSION["s_duration"];  '"/></td><td></td>'; }
+	else
+		 '/></td><td></td>';
+	 '<td><input type="text" name="b_duration" id="b_duration" TABINDEX=12';
+	if( $updating )
+	{	 ' value="';  $_SESSION["b_duration"];  '"/></td><td></td>'; }
+	else
+		 '/></td><td></td>';
+	 '<td><input type="text" name="r_duration" id="r_duration" TABINDEX=22';
+	if( $updating )
+	{	 ' value="';  $_SESSION["r_duration"];  '"/></td></tr>'; }
+	else
+		 '/></td><td></td></tr>';
+
+	 '<tr><td><label for="distance">Distance:</label></td>';
+	 '<td><input type="text" name="s_distance" id="s_distance" TABINDEX=4';
+	if( $updating )
+	{	 ' value="';  $_SESSION["s_distance"];  '"/></td><td></td>'; }
+	else
+		 '/></td><td></td>';
+	 '<td><input type="text" name="b_distance" id="b_distance" TABINDEX=13';
+	if( $updating )
+	{	 ' value="';  $_SESSION["b_distance"];  '"/></td><td></td>'; }
+	else
+		 '/></td><td></td>';
+	 '<td><input type="text" name="r_distance" id="r_distance" TABINDEX=23';
+	if( $updating )
+	{	 ' value="';  $_SESSION["r_distance"];  '"/></td></tr>'; }
+	else
+		 '/></td><td></td></tr>';
+
+	 '<tr><td><label for="notes">Notes: (max 500)</label></td>';
+	 '<td><textarea id="s_notes" name="s_notes" cols="18" rows="10" TABINDEX=5>';
+	if( $updating )
+	{	 $_SESSION["s_notes"];  '</textarea></td><td></td>'; }
+	else
+		 '</textarea></td><td></td>';
+	 '<td><textarea id="b_notes" name="b_notes" cols="18" rows="10" TABINDEX=14>';
+	if( $updating )
+	{	 $_SESSION["b_notes"];  '</textarea></td><td></td>'; }
+	else
+		 '</textarea></td><td></td>';
+	 '<td><textarea id="r_notes" name="r_notes" cols="18" rows="10" TABINDEX=25>';
+	if( $updating )
+	{	 $_SESSION["r_notes"];  '</textarea></td></tr>'; }
+	else
+		 '</textarea></td></tr>';
+
+	 '<tr><td><label for="avg_rpms">Avg RPMS:</label></td>';
+	 '<td></td><td></td><td><input type="text" name="avg_rpms" id="avg_rpms" TABINDEX=15';
+	if( $updating )
+	{	 ' value="';  $_SESSION["b_avgrpms"];  '"/></td></tr>'; }
+	else
+		 '/></td></tr>';
+
+ 	 '<tr><td><label for="min_hr">Min Hr:</label></td>';
+	 '<td><input type="text" name="s_min_hr" id="s_min_hr" TABINDEX=6';
+	if( $updating )
+	{	 ' value="';  $_SESSION["s_minhr"];   '"/></td><td></td>'; }
+	else
+		 '/></td><td></td>';
+	 '<td><input type="text" name="b_min_hr" id="b_min_hr" TABINDEX=16';
+	if( $updating )
+	{	 ' value="';  $_SESSION["b_minhr"];  '"/></td><td></td>'; }
+	else
+		 '/></td><td></td>';
+	 '<td><input type="text" name="r_min_hr" id="r_min_hr" TABINDEX=26';
+	if( $updating )
+	{	 ' value="';  $_SESSION["r_minhr"];  '"/></td></tr>'; }
+	else
+		 '/></td><td></td></tr>';
+
+	 '<tr><td><label for="avg_hr">Avg Hr:</label></td>';
+	 '<td><input type="text" name="s_avg_hr" id="s_avg_hr" TABINDEX=7';
+	if( $updating )
+	{	 ' value="';  $_SESSION["s_avghr"];  '"/></td><td></td>'; }
+	else
+		 '/></td><td></td>';
+	 '<td><input type="text" name="b_avg_hr" id="b_avg_hr" TABINDEX=17';
+	if( $updating )
+	{	 ' value="';  $_SESSION["b_avghr"];  '"/></td><td></td>'; }
+	else
+		 '/></td><td></td>';
+	 '<td><input type="text" name="r_avg_hr" id="r_avg_hr" TABINDEX=27';
+	if( $updating )
+	{	 ' value="';  $_SESSION["r_avghr"];  '"/></td></tr>'; }
+	else
+		 '/></td><td></td></tr>';
+
+	 '<tr><td><label for="max_hr">Max Hr:</label></td>';
+	 '<td><input type="text" name="s_max_hr" id="s_max_hr" TABINDEX=8';
+	if( $updating )
+	{	 ' value="';  $_SESSION["s_maxhr"];  '"/></td><td></td>'; }
+	else
+		 '/></td><td></td>';
+	 '<td><input type="text" name="b_max_hr" id="b_max_hr" TABINDEX=18';
+	if( $updating )
+	{	 ' value="';  $_SESSION["b_maxhr"];  '"/></td><td></td>'; }
+	else
+		 '/></td><td></td>';
+	 '<td><input type="text" name="r_max_hr" id="r_max_hr" TABINDEX=28';
+	if( $updating )
+	{	 ' value="';  $_SESSION["r_maxhr"];  '"/></td></tr>'; }
+	else
+		 '/></td><td></td></tr>';
+
+	 '<tr><td><label for="calsburned">Calories Burned:</label></td>';
+	 '<td><input type="text" name="s_calsburned" id="s_calsburned" TABINDEX=9';
+	if( $updating )
+	{	 ' value="';  $_SESSION["s_calsburned"];  '"/></td><td></td>'; }
+	else
+		 '/></td><td></td>';
+	 '<td><input type="text" name="b_calsburned" id="b_calsburned" TABINDEX=19';
+	if( $updating )
+	{	 ' value="';  $_SESSION["b_calsburned"];  '"/></td><td></td>'; }
+	else
+		 '/></td><td></td>';
+	 '<td><input type="text" name="r_calsburned" id="r_calsburned" TABINDEX=29';
+	if( $updating )
+	{	 ' value="';  $_SESSION["r_calsburned"];  '"/></td><td></td>'; }
+	else
+		 '/></td><td></td>';
+
+	 '<tr><td><label for="blog_notes">Overall Daily Notes:</label></td>';
+	 '<td colspan=6><textarea id="blog_notes" name="blog_notes" cols="68" rows="10" TABINDEX=30>';
+	if( $updating )
+	{	 $_SESSION["blog_notes"];  '</textarea></td></tr>'; }
+	else
+		 '</textarea></td></tr>';
+
+	 '</table>';
+
+/*********				Setup the strength training section **************************************/
+	 '<table id="str_workouts">';
+	 '<tr><td colspan=9 align=center><h2>Strength Training</h2></td></tr>';
+	 '<td><select name="category" id="category" onchange="getWorkouts();"/>';
+	 '<option></option>';
+	get_strengthcategories();
+	 '</td>';
+	 '<td><select name="descriptions" id="descriptions"/></td>';
+	 '<td>Sets:</td>';  '<td width="2"><input type="text" name="sets" id="sets" /></td>';
+	 '<td class="submit" ><input type="button" value="Add Workout" onclick="addRowToTable();" /></td></tr>';
+	 '</table>';
+
+	 '<table>';
+	 '<tr><td><label for="str_workouttime">Workout time <span class="small">(hh:mm:ss)</span>:</label></td>';
+	 '<td><input type="text" name="str_workouttime" id="str_workouttime" TABINDEX=1';
+	 ' value="';  $_SESSION["str_workouttime"];  '"/></td></tr>';
+	 '<tr><td><label for="str_duration">Total Time <span class="small">(hh:mm:ss)</span>:</label></td>';
+	 '<td><input type="text" name="str_duration" id="str_duration" TABINDEX=2';
+	 ' value="';  $_SESSION["str_duration"];  '"/></td></tr>';
+	 '<tr><td><label for="str_notes">Notes: (max 500)</label></td>';
+	 '<td><textarea id="str_notes" name="str_notes" cols="68" rows="10" TABINDEX=3>';
+	 $_SESSION["str_notes"];  '</textarea></td></tr>';
+	 '</table>';
+/*********				End of the strength training seciont **************************************/
+	 '<input type="hidden" name="updating" id="updating" value="';  $updating;  '"/>';
+
+	 '<p class="submit"><input type="submit" value="Save Workouts">';
+
+	 '<input type="reset" value="Reset" /></p>';
+	 '</form>';  		//End of the Form
+
+	// End the session now.
+	session_destroy();
+}
+
+?>

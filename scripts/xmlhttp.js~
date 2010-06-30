@@ -1,0 +1,53 @@
+var xmlhttpObj = createXMLHttpRequest();
+
+/*********************** XML Request/Respons Functions ************************************/
+function createXMLHttpRequest()
+{
+	var request = false;
+
+	/* Does this browser support the XMLHttpRequest object? ie Not IE */
+	if( window.XMLHttpRequest )
+	{
+		if( typeof XMLHttpRequest != 'undefined' )
+		{
+			/* Try to create a new XMLHttpRequest object */
+			try
+			{
+				request = new XMLHttpRequest();
+			}
+			catch (e)
+			{
+				request = false;
+			}
+		}
+	}
+	/* Does this browser support ActiveX objects, ie IE */
+	else if( window.ActiveXObject )
+	{
+		/* Try to create a new ActiveX XMLHttp object */
+		try
+		{
+			request = new ActiveXObject( 'Msxml2.XMLHTTP' );
+		}
+		catch (e)
+		{
+			request = false;
+		}
+	}
+
+	return request;
+}
+
+function requestData( p_request, p_URL, p_data, p_func )
+{
+	/* See if the XMLHttpRequest Object actually exists */
+	if( p_request )
+	{
+		p_request.open( 'GET', p_URL, true );
+		p_request.onreadystatechange = p_func;
+		p_request.send();
+	}
+	else
+		alert( "Errror attempting to pass information to the server!" );
+}
+/*********************** End XML Request/Respons Functions ************************************/

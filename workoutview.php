@@ -1,0 +1,433 @@
+<?php
+/* File: 	workoutview.php
+   Desciption:	Implementation file for Montly Workout view.
+   Author:	Eric A. Bonney
+   Date:	November 29, 2009
+   Updated:	December 15, 2009 - updated the $txtDay variable to change it to a Date type.
+				    Had to do this so we could make sure that that url was
+				    formatted correctly as follows: YYYY-MM-DD, to include
+				    leading zeros.
+*/
+
+require_once "includes/db.inc";
+require_once "HTML/Template/IT.php";
+require_once "Date.php";
+require_once 'Calendar/Month/Weekdays.php';
+require_once "fitlogfunc.php";
+
+$display = $_GET[ "display" ];
+
+// Create the template and load the correct template file.
+$template = new HTML_Template_IT( "./templates" );
+$template->loadTemplatefile( "workoutview.tpl", true, true );
+
+session_start();
+
+// Get a connection to the database.
+if( !($connection = @mysql_connect( $hostName, $username, $password ) ) )
+	die( "Could not connect to database" );
+
+// Now that we are connected, select the correct database.
+if( !mysql_select_db( $databaseName, $connection ) )
+	showerror();
+
+//See if we have an authenticated user, if so, setup the appropriate message.
+if( isset( $_SESSION["loggedinUserName"] ) )
+{
+	$delAll = FALSE;
+	$userID = getUserID( $connection );
+	$yearmoday = explode( "-", $_SESSION["nav_month"] );
+
+	// See if the users is trying to display a month other than the current month.
+	if( $yearmoday != NULL )
+	{
+		$display_mo = new Date();
+		$display_mo->setDayMonthYear( $yearmoday[2], $yearmoday[1], $yearmoday[0] );
+	}
+	else
+		$display_mo = new Date();
+
+	//Set the date to the first day of the month.
+	$display_mo->setDayMonthYear( 1, $display_mo->getMonth(), $display_mo->getYear() );
+	
+	// Get the previous day from the displayed month.
+	$prevDay = $display_mo->getPrevDay();
+	$prevDay->setDayMonthYear( 1, ($prevDay->getMonth()), $prevDay->getYear() );
+
+	// Get the next day in from the diplayed month.
+	$display_mo->setDayMonthYear( $display_mo->getDaysInMonth(), $display_mo->getMonth(), $display_mo->getYear() );
+	$nextDay = $display_mo->getNextDay();
+
+	$template->setCurrentBlock( "NAVIGATION" );
+	$template->setVariable( "MONTH", "{$display_mo->getMonthName()} {$display_mo->getYear()}" );
+	$template->setVariable( "PREVIOUS", $prevDay->format( "%Y-%m-%d" ) );
+	$template->setVariable( "NEXT", $nextDay->format( "%Y-%m-%d" ) );
+	$template->setVariable( "TYPE", $display );
+	setSelectOption( $display, $template );
+	$template->parseCurrentBlock();
+
+	$Month = new Calendar_Month_Weekdays( $display_mo->getYear(), $display_mo->getMonth(), 1 );
+
+	$Month->build();
+
+	$template->setCurrentBlock( "WEEK" );
+	while( $Day = $Month->fetch() )
+	{
+		// Set the delete all button to off by default.
+		$delAll = FALSE;
+
+		if( $Day->isFirst() )
+		{
+			// Set the begining block area to {ONE}
+			// and set the current block
+			$currentDay = 1;
+		}
+
+		$curyear = strval( $Day->thisYear() );
+		$curmonth = strval( $Day->thisMonth() );
+		$curday = strval( $Day->thisDay() );
+		$txtDay = new Date();
+		$txtDay->setDayMonthYear( $curday, $curmonth, $curyear );
+//		$txtDay =  "$curyear-$curmonth-$curday";
+
+		$swim = getWorkoutRow( "s", $txtDay->format( "%Y-%m-%d" ), $userID, $display, $connection );
+		$bike = getWorkoutRow( "b", $txtDay->format( "%Y-%m-%d" ), $userID, $display, $connection );
+		$run = getWorkoutRow( "r", $txtDay->format( "%Y-%m-%d" ), $userID, $display, $connection );
+
+		//Set which plan type the user is displaying in the date cells
+		if( isset( $display ) )
+			$template->setVariable( "TYPE", $display );
+		else
+			$template->setVariable( "TYPE", "Actual" );
+
+		switch ( $currentDay )
+		{
+			case 1:
+				$template->setVariable( "ONE", $Day->thisDay() );
+				$template->setVariable( "UPDATE1", $txtDay->format( "%Y-%m-%d" ) );
+				if( $swim )
+				{
+					$template->setVariable( "SWIM1", "S" );
+					$template->setVariable( "SWIMDIST1", $swim["distance"] );
+					$template->setVariable( "SWIMDUR1", $swim["duration"] );
+					$template->setVariable( "SWIMDELDATE1", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "SWIMDEL1", "x");
+					$delAll = TRUE;
+				}
+				if( $bike )
+				{
+					$template->setVariable( "BIKE1", "B" );
+					$template->setVariable( "BIKEDIST1", $bike["distance"] );
+					$template->setVariable( "BIKEDUR1", $bike["duration"] );
+					$template->setVariable( "BIKEDELDATE1", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "BIKEDEL1", "x" );
+					$delAll = TRUE;
+				}
+				if ( $run )
+				{
+					$template->setVariable( "RUN1", "R" );
+					$template->setVariable( "RUNDIST1", $run["distance"] );
+					$template->setVariable( "RUNDUR1", $run["duration"] );
+					$template->setVariable( "RUNDELDATE1", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "RUNDEL1", "x" );
+					$delAll = TRUE;
+				}
+				// See if we need to display the delete all icon.
+				if( $delAll )
+				{
+					$template->setVariable( "DELALLDATE1", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "DELALL1", "x" );
+				}
+				break;
+			case 2:
+				$template->setVariable( "TWO", $Day->thisDay() );
+				$template->setVariable( "UPDATE2", $txtDay->format( "%Y-%m-%d" ) );
+				if( $swim )
+				{
+					$template->setVariable( "SWIM2", "S" );
+					$template->setVariable( "SWIMDIST2", $swim["distance"] );
+					$template->setVariable( "SWIMDUR2", $swim["duration"] );
+					$template->setVariable( "SWIMDELDATE2", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "SWIMDEL2", "x");
+					$delAll = TRUE;
+				}
+				if( $bike )
+				{
+					$template->setVariable( "BIKE2", "B" );
+					$template->setVariable( "BIKEDIST2", $bike["distance"] );
+					$template->setVariable( "BIKEDUR2", $bike["duration"] );
+					$template->setVariable( "BIKEDELDATE2", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "BIKEDEL2", "x" );
+					$delAll = TRUE;
+				}
+				if ( $run )
+				{
+					$template->setVariable( "RUN2", "R" );
+					$template->setVariable( "RUNDIST2", $run["distance"] );
+					$template->setVariable( "RUNDUR2", $run["duration"] );
+					$template->setVariable( "RUNDELDATE2", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "RUNDEL2", "x" );
+					$delAll = TRUE;
+				}
+				// See if we need to display the delete all icon.
+				if( $delAll )
+				{
+					$template->setVariable( "DELALLDATE2", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "DELALL2", "x" );
+				}
+				break;
+			case 3:
+				$template->setVariable( "THREE", $Day->thisDay() );
+				$template->setVariable( "UPDATE3", $txtDay->format( "%Y-%m-%d" ) );
+				if( $swim )
+				{
+					$template->setVariable( "SWIM3", "S" );
+					$template->setVariable( "SWIMDIST3", $swim["distance"] );
+					$template->setVariable( "SWIMDUR3", $swim["duration"] );
+					$template->setVariable( "SWIMDELDATE3", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "SWIMDEL3", "x");
+					$delAll = TRUE;
+				}
+				if( $bike )
+				{
+					$template->setVariable( "BIKE3", "B" );
+					$template->setVariable( "BIKEDIST3", $bike["distance"] );
+					$template->setVariable( "BIKEDUR3", $bike["duration"] );
+					$template->setVariable( "BIKEDELDATE3", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "BIKEDEL3", "x" );
+					$delAll = TRUE;
+				}
+				if ( $run )
+				{
+					$template->setVariable( "RUN3", "R" );
+					$template->setVariable( "RUNDIST3", $run["distance"] );
+					$template->setVariable( "RUNDUR3", $run["duration"] );
+					$template->setVariable( "RUNDELDATE3", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "RUNDEL3", "x" );
+					$delAll = TRUE;
+				}
+				// See if we need to display the delete all icon.
+				if( $delAll )
+				{
+					$template->setVariable( "DELALLDATE3", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "DELALL3", "x" );
+				}
+				break;
+			case 4:
+				$template->setVariable( "FOUR", $Day->thisDay() );
+				$template->setVariable( "UPDATE4", $txtDay->format( "%Y-%m-%d" ) );
+				if( $swim )
+				{
+					$template->setVariable( "SWIM4", "S" );
+					$template->setVariable( "SWIMDIST4", $swim["distance"] );
+					$template->setVariable( "SWIMDUR4", $swim["duration"] );
+					$template->setVariable( "SWIMDELDATE4", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "SWIMDEL4", "x");
+					$delAll = TRUE;
+				}
+				if( $bike )
+				{
+					$template->setVariable( "BIKE4", "B" );
+					$template->setVariable( "BIKEDIST4", $bike["distance"] );
+					$template->setVariable( "BIKEDUR4", $bike["duration"] );
+					$template->setVariable( "BIKEDELDATE4", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "BIKEDEL4", "x" );
+					$delAll = TRUE;
+				}
+				if ( $run )
+				{
+					$template->setVariable( "RUN4", "R" );
+					$template->setVariable( "RUNDIST4", $run["distance"] );
+					$template->setVariable( "RUNDUR4", $run["duration"] );
+					$template->setVariable( "RUNDELDATE4", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "RUNDEL4", "x" );
+					$delAll = TRUE;
+				}
+				// See if we need to display the delete all icon.
+				if( $delAll )
+				{
+					$template->setVariable( "DELALLDATE4", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "DELALL4", "x" );
+				}	
+				break;
+			case 5:
+				$template->setVariable( "FIVE", $Day->thisDay() );
+				$template->setVariable( "UPDATE5", $txtDay->format( "%Y-%m-%d" ) );
+				if( $swim )
+				{
+					$template->setVariable( "SWIM5", "S" );
+					$template->setVariable( "SWIMDIST5", $swim["distance"] );
+					$template->setVariable( "SWIMDUR5", $swim["duration"] );
+					$template->setVariable( "SWIMDELDATE5", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "SWIMDEL5", "x");
+					$delAll = TRUE;
+				}
+				if( $bike )
+				{
+					$template->setVariable( "BIKE5", "B" );
+					$template->setVariable( "BIKEDIST5", $bike["distance"] );
+					$template->setVariable( "BIKEDUR5", $bike["duration"] );
+					$template->setVariable( "BIKEDELDATE5", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "BIKEDEL5", "x" );
+					$delAll = TRUE;
+				}
+				if ( $run )
+				{
+					$template->setVariable( "RUN5", "R" );
+					$template->setVariable( "RUNDIST5", $run["distance"] );
+					$template->setVariable( "RUNDUR5", $run["duration"] );
+					$template->setVariable( "RUNDELDATE5", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "RUNDEL5", "x" );
+					$delAll = TRUE;
+				}
+				// See if we need to display the delete all icon.
+				if( $delAll )
+				{
+					$template->setVariable( "DELALLDATE5", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "DELALL5", "x" );
+				}
+				break;
+			case 6:
+				$template->setVariable( "SIX", $Day->thisDay() );
+				$template->setVariable( "UPDATE6", $txtDay->format( "%Y-%m-%d" ) );
+				if( $swim )
+				{
+					$template->setVariable( "SWIM6", "S" );
+					$template->setVariable( "SWIMDIST6", $swim["distance"] );
+					$template->setVariable( "SWIMDUR6", $swim["duration"] );
+					$template->setVariable( "SWIMDELDATE6", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "SWIMDEL6", "x");
+					$delAll = TRUE;
+				}
+				if( $bike )
+				{
+					$template->setVariable( "BIKE6", "B" );
+					$template->setVariable( "BIKEDIST6", $bike["distance"] );
+					$template->setVariable( "BIKEDUR6", $bike["duration"] );
+					$template->setVariable( "BIKEDELDATE6", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "BIKEDEL6", "x" );
+					$delAll = TRUE;
+				}
+				if ( $run )
+				{
+					$template->setVariable( "RUN6", "R" );
+					$template->setVariable( "RUNDIST6", $run["distance"] );
+					$template->setVariable( "RUNDUR6", $run["duration"] );
+					$template->setVariable( "RUNDELDATE6", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "RUNDEL6", "x" );
+					$delAll = TRUE;
+				}
+				// See if we need to display the delete all icon.
+				if( $delAll )
+				{
+					$template->setVariable( "DELALLDATE6", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "DELALL6", "x" );
+				}
+				break;
+			case 7:
+				$template->setVariable( "SEVEN", $Day->thisDay() );
+				$template->setVariable( "UPDATE7", $txtDay->format( "%Y-%m-%d" ) );
+				if( $swim )
+				{
+					$template->setVariable( "SWIM7", "S" );
+					$template->setVariable( "SWIMDIST7", $swim["distance"] );
+					$template->setVariable( "SWIMDUR7", $swim["duration"] );
+					$template->setVariable( "SWIMDELDATE7", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "SWIMDEL7", "x");
+					$delAll = TRUE;
+				}
+				if( $bike )
+				{
+					$template->setVariable( "BIKE7", "B" );
+					$template->setVariable( "BIKEDIST7", $bike["distance"] );
+					$template->setVariable( "BIKEDUR7", $bike["duration"] );
+					$template->setVariable( "BIKEDELDATE7", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "BIKEDEL7", "x" );
+					$delAll = TRUE;
+				}
+				if ( $run )
+				{
+					$template->setVariable( "RUN7", "R" );
+					$template->setVariable( "RUNDIST7", $run["distance"] );
+					$template->setVariable( "RUNDUR7", $run["duration"] );
+					$template->setVariable( "RUNDELDATE7", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "RUNDEL7", "x" );
+					$delAll = TRUE;
+				}
+				// See if we need to display the delete all icon.
+				if( $delAll )
+				{
+					$template->setVariable( "DELALLDATE7", $txtDay->format( "%Y-%m-%d" ) );
+					$template->setVariable( "DELALL7", "x" );
+				}
+				break;
+		}
+
+		// Move to the next block on the calendar view.
+		$currentDay = $currentDay + 1;
+
+		if( $Day->isLast() )
+		{
+			// parse the block
+			$template->parseCurrentBlock();
+			$template->setCurrentBlock( "WEEK" );
+		}	
+	}
+}
+else
+{
+	//Seems the user has attempted to navigate directly to the dashboard without
+	//logging in. Send them to the logout page with an error message.
+	$_SESSION["headerMessage"] = "Error!!";
+	$_SESSION["message"] = "You must first log into the system before you can view the page.";
+
+	// Send user to the logout page.
+	header( "Location: logout.php" );
+	exit;
+}
+
+//Show the user the Month View page.
+$template->show();
+
+/******************************* Helper Functions **********************************************/
+function getWorkoutRow( $activity, $date, $userID, $display_type, $connection )
+{
+	// See what type the user wants to display, actual or planned.
+	switch ( $display_type )
+	{
+		case "Actual":
+			$type = 'a';
+			break;
+		case "Planned":
+			$type = 'p';
+			break;
+		default:
+			$type = 'a';
+			break;
+	}
+
+	// Get the current day's workouts
+	$query = "SELECT distance, duration FROM flmain WHERE workout_date='" . $date . "' AND user_id={$userID} AND sbr_type='" . $activity . "' AND plan_type='" . $type . "'";
+
+	// Run the queries to get results.
+	$results = @ mysql_query( $query, $connection );
+
+	return mysql_fetch_array( $results );
+}
+
+function setSelectOption( $display, $template )
+{
+	switch ( $display )
+	{
+		case "Actual":
+			$template->setVariable( "SELECTEDA", 'selected="selected"' );
+			break;
+		case "Planned":
+			$template->setVariable( "SELECTEDP", 'selected="selected"' );
+			break;
+		default:
+			$template->setVariable( "SELECTEDA", 'selected="selected"' );
+			break;
+	}
+}
+?>
